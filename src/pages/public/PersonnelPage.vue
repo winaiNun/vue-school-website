@@ -2,9 +2,15 @@
   <PublicLayout>
     <!-- Hero -->
     <div class="bg-gradient-to-r from-blue-800 to-blue-600 text-white py-10 px-4">
-      <div class="max-w-6xl mx-auto">
-        <h1 class="text-2xl md:text-3xl font-bold">👨‍🏫 คณะครูและบุคลากร</h1>
-        <p class="text-blue-200 mt-1 text-sm">{{ config?.name_th || 'โรงเรียน' }}</p>
+      <div class="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold">👨‍🏫 คณะครูและบุคลากร</h1>
+          <p class="text-blue-200 mt-1 text-sm">{{ config?.name_th || 'โรงเรียน' }}</p>
+        </div>
+        <RouterLink to="/personnel/stats"
+          class="flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
+          📊 สารสนเทศบุคลากร
+        </RouterLink>
       </div>
     </div>
 
@@ -179,16 +185,27 @@ const PersonCard = defineComponent({
         h('div', {
           class: `relative bg-gradient-to-br ${props.bgClass} flex flex-col items-center justify-center overflow-hidden`,
           style: `height:${props.height}px`,
-        }, hasPhoto
-          ? [h('img', { src: t.profile_image_url, class: 'w-full h-full object-cover object-top', loading: 'lazy' })]
-          : [
-              h('svg', { viewBox: '0 0 80 100', class: 'w-16 opacity-25', fill: 'currentColor' }, [
-                h('ellipse', { cx: 40, cy: 28, rx: 20, ry: 24, fill: '#6b7280' }),
-                h('path', { d: 'M5,100 Q5,60 40,60 Q75,60 75,100 Z', fill: '#6b7280' }),
-              ]),
-              h('p', { class: 'text-gray-400 text-center mt-1', style: 'font-size:10px;line-height:1.3;max-width:90%' }, 'ยังไม่มีภาพถ่าย'),
-            ]
-        ),
+        }, [
+          ...(hasPhoto
+            ? [h('img', { src: t.profile_image_url, class: 'w-full h-full object-cover object-top', loading: 'lazy' })]
+            : [
+                h('svg', { viewBox: '0 0 80 100', class: 'w-16 opacity-25', fill: 'currentColor' }, [
+                  h('ellipse', { cx: 40, cy: 28, rx: 20, ry: 24, fill: '#6b7280' }),
+                  h('path', { d: 'M5,100 Q5,60 40,60 Q75,60 75,100 Z', fill: '#6b7280' }),
+                ]),
+                h('p', { class: 'text-gray-400 text-center mt-1', style: 'font-size:10px;line-height:1.3;max-width:90%' }, 'ยังไม่มีภาพถ่าย'),
+              ]
+          ),
+          // Overlay ลิงค์ผลงาน
+          t?.website_url
+            ? h('a', {
+                href: t.website_url, target: '_blank', rel: 'noopener noreferrer',
+                class: 'absolute bottom-0 left-0 right-0 bg-blue-600/90 hover:bg-blue-700 text-white text-center py-1.5 transition-colors',
+                style: 'font-size:10px;font-weight:600;letter-spacing:0.02em',
+                onClick: (e) => e.stopPropagation(),
+              }, '🌐 เยี่ยมชมผลงาน')
+            : null,
+        ]),
         h('div', { class: 'px-2 py-2.5 text-center' }, [
           h('p', { class: 'font-semibold text-gray-900', style: 'font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden' },
             `${t?.prefix || ''}${t?.first_name || ''} ${t?.last_name || ''}`),

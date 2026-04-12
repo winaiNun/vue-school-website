@@ -230,6 +230,14 @@
               </div>
             </div>
 
+            <!-- เว็บไซต์/ผลงาน -->
+            <div>
+              <label class="label">🌐 เว็บไซต์หรือผลงาน (ถ้ามี)</label>
+              <input v-model="teacherForm.website_url" type="url" class="input-field"
+                placeholder="https://sites.google.com/..." />
+              <p class="text-xs text-gray-400 mt-1">จะแสดงปุ่ม "เยี่ยมชมผลงาน" บนการ์ดในหน้าสาธารณะ</p>
+            </div>
+
             <!-- วุฒิการศึกษา -->
             <div class="bg-amber-50 rounded-xl p-4">
               <label class="text-sm font-semibold text-amber-800 mb-3 block">🎓 วุฒิการศึกษา</label>
@@ -348,7 +356,7 @@ const emptyForm = () => ({
   academic_standing: '', subject_group: '', group_role: '', subjects_taught: '',
   id_card: '', phone: '', email: '', birth_date: '',
   education_level: '', education_major: '', education_institution: '',
-  profile_id: '', profile_image_url: ''
+  website_url: '', profile_id: '', profile_image_url: ''
 })
 const teacherForm = ref(emptyForm())
 
@@ -405,6 +413,7 @@ async function openEdit(t) {
     education_level:         t.education_level         || '',
     education_major:         t.education_major         || '',
     education_institution:   t.education_institution   || '',
+    website_url:             t.website_url             || '',
     profile_id:              t.profile_id              || '',
     profile_image_url:       t.profile_image_url       || '',
   }

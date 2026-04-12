@@ -107,6 +107,13 @@
             <input v-model="form.subjects_taught" type="text" class="input-field" placeholder="เช่น คณิตศาสตร์พื้นฐาน, แคลคูลัส" />
           </div>
 
+          <!-- เว็บไซต์/ผลงาน -->
+          <div>
+            <label class="label">🌐 เว็บไซต์หรือผลงานของคุณ</label>
+            <input v-model="form.website_url" type="url" class="input-field" placeholder="https://sites.google.com/..." />
+            <p class="text-xs text-gray-400 mt-1">จะแสดงปุ่ม "เยี่ยมชมผลงาน" บนการ์ดในหน้าสาธารณะ</p>
+          </div>
+
           <div v-if="!teacherProfileId" class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
             ⚠️ บัญชีของคุณยังไม่ถูกเชื่อมกับข้อมูลครู กรุณาติดต่อผู้ดูแลระบบ
           </div>
@@ -146,7 +153,7 @@ let toastTimer = null
 const form = ref({
   prefix: 'นาย', first_name: '', last_name: '',
   position: 'ครู', academic_standing: '', subject_group: '',
-  phone: '', subjects_taught: '',
+  phone: '', subjects_taught: '', website_url: '',
   education_level: '', education_major: '', education_institution: '',
   profile_image_url: '',
 })
@@ -174,6 +181,7 @@ async function save() {
     education_level:         form.value.education_level || null,
     education_major:         form.value.education_major || null,
     education_institution:   form.value.education_institution || null,
+    website_url:             form.value.website_url || null,
     profile_image_url:       form.value.profile_image_url || null,
   }).eq('id', teacherProfileId.value)
 
@@ -200,10 +208,11 @@ onMounted(async () => {
     subject_group:         data.subject_group        || '',
     phone:                 data.phone                || '',
     subjects_taught:       data.subjects_taught      || '',
-    education_level:       data.education_level      || '',
-    education_major:       data.education_major      || '',
+    education_level:       data.education_level       || '',
+    education_major:       data.education_major       || '',
     education_institution: data.education_institution || '',
-    profile_image_url:     data.profile_image_url    || '',
+    website_url:           data.website_url           || '',
+    profile_image_url:     data.profile_image_url     || '',
   }
 })
 </script>

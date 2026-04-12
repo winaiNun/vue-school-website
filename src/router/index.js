@@ -9,7 +9,8 @@ const routes = [
   { path: '/activities',  name: 'Activities',  component: () => import('../pages/public/ActivitiesPage.vue') },
   { path: '/media',       name: 'Media',       component: () => import('../pages/public/MediaPage.vue') },
   { path: '/media/:id',   name: 'MediaDetail', component: () => import('../pages/public/MediaDetailPage.vue') },
-  { path: '/personnel',   name: 'Personnel',   component: () => import('../pages/public/PersonnelPage.vue') },
+  { path: '/personnel',       name: 'Personnel',      component: () => import('../pages/public/PersonnelPage.vue') },
+  { path: '/personnel/stats', name: 'PersonnelStats', component: () => import('../pages/public/PersonnelStatsPage.vue') },
   { path: '/about/:slug', name: 'OrgDetail',  component: () => import('../pages/public/OrgDetailPage.vue') },
   { path: '/wpa-public',  name: 'WpaPublic',  component: () => import('../pages/public/WpaPublicPage.vue') },
   { path: '/calendar',    name: 'Calendar',   component: () => import('../pages/public/CalendarPage.vue') },
@@ -56,7 +57,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   // หน้า public ไม่ต้องเช็ค auth
-  const publicRoutes = ['Home', 'News', 'NewsDetail', 'Activities', 'Media', 'MediaDetail', 'Personnel', 'OrgDetail', 'WpaPublic', 'StudentsInfo', 'Calendar', 'Documents']
+  const publicRoutes = ['Home', 'News', 'NewsDetail', 'Activities', 'Media', 'MediaDetail', 'Personnel', 'PersonnelStats', 'OrgDetail', 'WpaPublic', 'StudentsInfo', 'Calendar', 'Documents']
   if (publicRoutes.includes(to.name)) return
 
   // รอให้ initAuth() เสร็จก่อน (ป้องกัน auth-lock ชนกัน)
