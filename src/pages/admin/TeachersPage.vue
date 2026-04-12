@@ -134,10 +134,20 @@
                 <label class="label">วิทยฐานะ</label>
                 <select v-model="teacherForm.academic_standing" class="input-field">
                   <option value="">ไม่มี / ยังไม่มีวิทยฐานะ</option>
-                  <option>ครูชำนาญการ</option>
-                  <option>ครูชำนาญการพิเศษ</option>
-                  <option>ครูเชี่ยวชาญ</option>
-                  <option>ครูเชี่ยวชาญพิเศษ</option>
+                  <optgroup label="── ครู ──">
+                    <option>ครูชำนาญการ</option>
+                    <option>ครูชำนาญการพิเศษ</option>
+                    <option>ครูเชี่ยวชาญ</option>
+                    <option>ครูเชี่ยวชาญพิเศษ</option>
+                  </optgroup>
+                  <optgroup label="── ผู้อำนวยการ ──">
+                    <option>ผู้อำนวยการชำนาญการพิเศษ</option>
+                    <option>ผู้อำนวยการเชี่ยวชาญ</option>
+                  </optgroup>
+                  <optgroup label="── รองผู้อำนวยการ ──">
+                    <option>รองผู้อำนวยการชำนาญการพิเศษ</option>
+                    <option>รองผู้อำนวยการเชี่ยวชาญ</option>
+                  </optgroup>
                 </select>
               </div>
             </div>
@@ -184,11 +194,13 @@
                   <option value="">-- เลือกกลุ่ม --</option>
                   <option v-for="d in adminDepartments" :key="d" :value="d">{{ d }}</option>
                 </select>
-                <select v-model="row.department_role" class="input-field w-40 text-sm">
-                  <option value="กรรมการ">กรรมการ</option>
-                  <option value="เลขานุการ">เลขานุการ</option>
-                  <option value="รองหัวหน้ากลุ่ม">รองหัวหน้ากลุ่ม</option>
+                <select v-model="row.department_role" class="input-field w-48 text-sm">
+                  <option value="ผู้อำนวยการโรงเรียน">ผู้อำนวยการโรงเรียน</option>
+                  <option value="รองผู้อำนวยการโรงเรียน">รองผู้อำนวยการโรงเรียน</option>
                   <option value="หัวหน้ากลุ่ม">หัวหน้ากลุ่ม</option>
+                  <option value="รองหัวหน้ากลุ่ม">รองหัวหน้ากลุ่ม</option>
+                  <option value="เลขานุการ">เลขานุการ</option>
+                  <option value="กรรมการ">กรรมการ</option>
                 </select>
                 <button type="button" @click="deptAssignments.splice(idx, 1)"
                   class="p-1.5 rounded-lg text-indigo-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">✕</button>

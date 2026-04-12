@@ -164,7 +164,12 @@ const SUBJECT_GROUP_ORDER = [
   'ภาษาไทย','คณิตศาสตร์','วิทยาศาสตร์และเทคโนโลยี','สังคมศึกษาฯ',
   'ภาษาต่างประเทศ','สุขศึกษาและพลศึกษา','ศิลปะ','การงานอาชีพ','กิจกรรมพัฒนาผู้เรียน',
 ]
-const STANDING_ORDER = { 'ครูเชี่ยวชาญพิเศษ': 0, 'ครูเชี่ยวชาญ': 1, 'ครูชำนาญการพิเศษ': 2, 'ครูชำนาญการ': 3, '': 4 }
+const STANDING_ORDER = {
+  'ผู้อำนวยการเชี่ยวชาญ': 0, 'ผู้อำนวยการชำนาญการพิเศษ': 1,
+  'รองผู้อำนวยการเชี่ยวชาญ': 2, 'รองผู้อำนวยการชำนาญการพิเศษ': 3,
+  'ครูเชี่ยวชาญพิเศษ': 4, 'ครูเชี่ยวชาญ': 5,
+  'ครูชำนาญการพิเศษ': 6, 'ครูชำนาญการ': 7, '': 8,
+}
 const STANDING_LABEL = { 'ครูเชี่ยวชาญพิเศษ': 'คศ.4', 'ครูเชี่ยวชาญ': 'คศ.3', 'ครูชำนาญการพิเศษ': 'คศ.2', 'ครูชำนาญการ': 'คศ.1' }
 const GROUP_ROLE_ORDER = { 'หัวหน้ากลุ่มสาระ': 0, 'รองหัวหน้ากลุ่มสาระ': 1, '': 2 }
 const EXEC_POSITIONS    = ['ผู้อำนวยการโรงเรียน', 'รองผู้อำนวยการ']
@@ -234,12 +239,16 @@ function sortTeachers(list) {
 }
 
 // ── Helpers เพิ่มเติม ─────────────────────────────────────────
+function getDeptRole(t, deptName) {
+  return (deptMap.value[t.id] || []).find(d => d.department_name === deptName)?.department_role || ''
+}
 function deptRoleLabel(t, deptName) {
-  const asgn = (deptMap.value[t.id] || []).find(d => d.department_name === deptName)
-  const role = asgn?.department_role || ''
-  if (role === 'หัวหน้ากลุ่ม') return '⭐ หัวหน้ากลุ่ม'
-  if (role === 'รองหัวหน้ากลุ่ม') return '★ รองหัวหน้ากลุ่ม'
-  if (role === 'เลขานุการ') return '📝 เลขานุการ'
+  const role = getDeptRole(t, deptName)
+  if (role === 'ผู้อำนวยการโรงเรียน')   return '🏫 ผู้อำนวยการโรงเรียน'
+  if (role === 'รองผู้อำนวยการโรงเรียน') return '🏫 รองผู้อำนวยการโรงเรียน'
+  if (role === 'หัวหน้ากลุ่ม')           return '⭐ หัวหน้ากลุ่ม'
+  if (role === 'รองหัวหน้ากลุ่ม')        return '★ รองหัวหน้ากลุ่ม'
+  if (role === 'เลขานุการ')              return '📝 เลขานุการ'
   return ''
 }
 
@@ -315,19 +324,18 @@ const adminDeptGroups = computed(() => {
     )
     if (!members.length) return null
 
-    // แถวที่ 1: ผอ. (ถ้ามี)
-    const directorInDept = members.find(t => t.position === 'ผู้อำนวยการโรงเรียน') || null
+    // แถวที่ 1: department_role === 'ผู้อำนวยการโรงเรียน'
+    const directorInDept = members.find(t => getDeptRole(t, deptName) === 'ผู้อำนวยการโรงเรียน') || null
 
-    // แถวที่ 2: รอง ผอ. + หัวหน้ากลุ่ม (ที่ไม่ใช่ ผอ.)
+    // แถวที่ 2: รอง ผอ. (ตาม role) + หัวหน้ากลุ่ม — ไม่รวม ผอ.
     const row2 = members.filter(t => {
-      if (t.position === 'ผู้อำนวยการโรงเรียน') return false
-      const role = (deptMap.value[t.id] || []).find(d => d.department_name === deptName)?.department_role || ''
-      return t.position === 'รองผู้อำนวยการ' || role === 'หัวหน้ากลุ่ม'
+      if (getDeptRole(t, deptName) === 'ผู้อำนวยการโรงเรียน') return false
+      const role = getDeptRole(t, deptName)
+      return role === 'รองผู้อำนวยการโรงเรียน' || role === 'หัวหน้ากลุ่ม'
     }).sort((a, b) => {
       // รอง ผอ. ก่อน หัวหน้ากลุ่ม
-      const aIsVice = a.position === 'รองผู้อำนวยการ' ? 0 : 1
-      const bIsVice = b.position === 'รองผู้อำนวยการ' ? 0 : 1
-      return aIsVice - bIsVice
+      const order = { 'รองผู้อำนวยการโรงเรียน': 0, 'หัวหน้ากลุ่ม': 1 }
+      return (order[getDeptRole(a, deptName)] ?? 2) - (order[getDeptRole(b, deptName)] ?? 2)
     })
 
     // สมาชิกที่เหลือ เรียงตามวิทยฐานะ
