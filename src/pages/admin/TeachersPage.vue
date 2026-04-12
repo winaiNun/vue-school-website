@@ -230,6 +230,31 @@
               </div>
             </div>
 
+            <!-- วุฒิการศึกษา -->
+            <div class="bg-amber-50 rounded-xl p-4">
+              <label class="text-sm font-semibold text-amber-800 mb-3 block">🎓 วุฒิการศึกษา</label>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="label">ระดับการศึกษา</label>
+                  <select v-model="teacherForm.education_level" class="input-field">
+                    <option value="">— ไม่ระบุ —</option>
+                    <option>ต่ำกว่าปริญญาตรี</option>
+                    <option>ปริญญาตรี</option>
+                    <option>ปริญญาโท</option>
+                    <option>ปริญญาเอก</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label">สาขาวิชา</label>
+                  <input v-model="teacherForm.education_major" type="text" class="input-field" placeholder="เช่น คณิตศาสตร์" />
+                </div>
+                <div>
+                  <label class="label">สถาบัน</label>
+                  <input v-model="teacherForm.education_institution" type="text" class="input-field" placeholder="เช่น ม.ราชภัฏ..." />
+                </div>
+              </div>
+            </div>
+
             <!-- เชื่อมบัญชี -->
             <div class="bg-blue-50 rounded-xl p-4">
               <label class="label text-blue-800">🔗 เชื่อมกับบัญชีผู้ใช้ในระบบ (ถ้ามี)</label>
@@ -322,6 +347,7 @@ const emptyForm = () => ({
   prefix: 'นาย', first_name: '', last_name: '', position: 'ครู',
   academic_standing: '', subject_group: '', group_role: '', subjects_taught: '',
   id_card: '', phone: '', email: '', birth_date: '',
+  education_level: '', education_major: '', education_institution: '',
   profile_id: '', profile_image_url: ''
 })
 const teacherForm = ref(emptyForm())
@@ -375,9 +401,12 @@ async function openEdit(t) {
     phone:              t.phone || '',
     email:              t.email || '',
     birth_date:         t.birth_date || '',
-    group_role:         t.group_role || '',
-    profile_id:         t.profile_id || '',
-    profile_image_url:  t.profile_image_url || '',
+    group_role:              t.group_role              || '',
+    education_level:         t.education_level         || '',
+    education_major:         t.education_major         || '',
+    education_institution:   t.education_institution   || '',
+    profile_id:              t.profile_id              || '',
+    profile_image_url:       t.profile_image_url       || '',
   }
   // โหลด dept assignments
   const { data } = await supabase

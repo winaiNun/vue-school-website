@@ -33,8 +33,25 @@
           <p class="font-medium">ยังไม่มีข้อมูลบุคลากร</p>
         </div>
 
+        <!-- ── Tab Bar ── -->
+        <div v-else class="mb-8">
+          <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-0">
+            <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
+              :class="['px-4 py-2.5 text-sm font-medium rounded-t-xl transition-all border-b-2 -mb-px',
+                activeTab === tab.key
+                  ? 'border-blue-600 text-blue-700 bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50']">
+              {{ tab.icon }} {{ tab.label }}
+              <span class="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
+                :class="activeTab === tab.key ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'">
+                {{ tab.count }}
+              </span>
+            </button>
+          </div>
+        </div>
+
         <!-- ───── ผู้บริหาร ───── -->
-        <section v-if="executives" class="mb-10">
+        <section v-if="activeTab === 'executives' && executives" class="mb-10">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full text-lg">🏫</div>
             <h2 class="text-lg font-bold text-gray-800">ผู้บริหารโรงเรียน</h2>
@@ -49,7 +66,7 @@
         </section>
 
         <!-- ───── กลุ่มบริหาร ───── -->
-        <template v-if="adminDeptGroups.length">
+        <template v-if="activeTab === 'departments' && adminDeptGroups.length">
           <section v-for="dept in adminDeptGroups" :key="dept.name" class="mb-10">
             <div class="flex items-center gap-3 mb-4">
               <div class="w-8 h-8 flex items-center justify-center bg-indigo-100 rounded-full text-lg">🏢</div>
@@ -74,7 +91,34 @@
         </template>
 
         <!-- ───── กลุ่มสาระ ───── -->
-        <section v-for="group in subjectGroupsData" :key="group.name" class="mb-10">
+        <template v-if="activeTab === 'subjects'">
+          <!-- Search + filter -->
+          <div class="flex flex-col sm:flex-row gap-3 mb-6">
+            <div class="relative flex-1">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+              <input v-model="subjectSearch" type="text" placeholder="ค้นหาชื่อครู..."
+                class="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button @click="subjectFilter = ''"
+                :class="['px-3 py-2 rounded-xl text-xs font-medium border transition-all',
+                  subjectFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300']">
+                ทั้งหมด
+              </button>
+              <button v-for="g in availableSubjectGroups" :key="g" @click="subjectFilter = g"
+                :class="['px-3 py-2 rounded-xl text-xs font-medium border transition-all',
+                  subjectFilter === g ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300']">
+                {{ groupIcon(g) }} {{ g }}
+              </button>
+            </div>
+          </div>
+          <!-- ไม่พบ -->
+          <div v-if="filteredSubjectGroups.length === 0 && subjectSearch" class="text-center py-16 text-gray-400">
+            <div class="text-4xl mb-2">🔍</div>
+            <p>ไม่พบครูชื่อ "{{ subjectSearch }}"</p>
+          </div>
+        </template>
+        <section v-if="activeTab === 'subjects'" v-for="group in filteredSubjectGroups" :key="group.name" class="mb-10">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full text-lg">{{ groupIcon(group.name) }}</div>
             <h2 class="text-lg font-bold text-gray-800">{{ group.name }}</h2>
@@ -91,7 +135,7 @@
         </section>
 
         <!-- ───── บุคลากรสนับสนุน ───── -->
-        <section v-if="otherStaff.length" class="mb-10">
+        <section v-if="activeTab === 'support' && otherStaff.length" class="mb-10">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-8 h-8 flex items-center justify-center bg-blue-100 rounded-full text-lg">👷</div>
             <h2 class="text-lg font-bold text-gray-800">บุคลากรสนับสนุน</h2>
@@ -185,6 +229,11 @@ const allTeachers   = ref([])
 const deptMap       = ref({})   // { teacher_id: [{department_name, department_role}] }
 const loading       = ref(true)
 const fetchError    = ref('')
+
+// ── Tab state ─────────────────────────────────────────────────
+const activeTab    = ref('executives')
+const subjectSearch = ref('')
+const subjectFilter = ref('')
 
 const DEFAULT_DEPTS = ['กลุ่มบริหารวิชาการ','กลุ่มบริหารงบประมาณ','กลุ่มบริหารงานบุคคล','กลุ่มบริหารทั่วไป']
 const adminDeptList = computed(() =>
@@ -313,6 +362,35 @@ const otherStaff = computed(() =>
            (!t.subject_group && !EXEC_POSITIONS.includes(t.position))
     )
   )
+)
+
+// กลุ่มสาระกรองตาม search + filter
+const availableSubjectGroups = computed(() => subjectGroupsData.value.map(g => g.name))
+
+const filteredSubjectGroups = computed(() => {
+  const q = subjectSearch.value.toLowerCase().trim()
+  return subjectGroupsData.value
+    .filter(g => !subjectFilter.value || g.name === subjectFilter.value)
+    .map(g => {
+      if (!q) return g
+      const filterMember = t => {
+        const name = `${t.prefix || ''}${t.first_name || ''} ${t.last_name || ''}`.toLowerCase()
+        return name.includes(q)
+      }
+      const head    = g.head    && filterMember(g.head)    ? g.head    : null
+      const members = g.members.filter(filterMember)
+      return { ...g, head, members }
+    })
+    .filter(g => g.head || g.members.length)
+})
+
+// Tab definitions
+const tabs = computed(() => [
+  { key: 'executives',  icon: '🏫', label: 'ผู้บริหาร',         count: (director.value ? 1 : 0) + viceDirectors.value.length },
+  { key: 'departments', icon: '🏢', label: 'กลุ่มบริหาร',       count: adminDeptGroups.value.length },
+  { key: 'subjects',    icon: '📚', label: 'กลุ่มสาระ',          count: subjectGroupsData.value.length },
+  { key: 'support',     icon: '👷', label: 'บุคลากรสนับสนุน',    count: otherStaff.value.length },
+].filter(t => t.count > 0)
 )
 
 // กลุ่มบริหาร — แต่ละกลุ่มมี director / row2 / members
