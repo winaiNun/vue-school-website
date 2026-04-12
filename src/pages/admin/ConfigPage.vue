@@ -1229,6 +1229,27 @@
 
       </div>
 
+      <!-- ═══ PERSONNEL TAB ═══ -->
+      <div v-if="activeTab === 'personnel'" class="space-y-4">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 class="font-bold text-gray-900 flex items-center gap-2 text-base mb-1">👥 กลุ่มบริหารงาน</h3>
+          <p class="text-xs text-gray-400 mb-5">กำหนดชื่อกลุ่มบริหารของโรงเรียน — แสดงในหน้าบุคลากรสาธารณะ</p>
+          <div class="space-y-2 mb-4">
+            <div v-for="(dept, idx) in form.admin_departments" :key="idx" class="flex items-center gap-2">
+              <span class="text-gray-400 text-sm w-5 text-right flex-shrink-0">{{ idx + 1 }}.</span>
+              <input v-model="form.admin_departments[idx]" type="text" class="input-field flex-1"
+                :placeholder="`ชื่อกลุ่มที่ ${idx + 1}`" />
+              <button @click="form.admin_departments.splice(idx, 1)"
+                class="p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">✕</button>
+            </div>
+          </div>
+          <button @click="form.admin_departments.push('')"
+            class="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium">
+            <span class="text-lg leading-none">+</span> เพิ่มกลุ่ม
+          </button>
+        </div>
+      </div>
+
       <!-- ═══ FOOTER TAB ═══ -->
       <div v-if="activeTab === 'footer'" class="space-y-4">
 
@@ -1527,8 +1548,9 @@ const tabs = [
   { key: 'preview',  icon: '👁️', label: 'ตัวอย่าง' },
   { key: 'sections', icon: '🏠', label: 'Section หน้าแรก' },
   { key: 'widgets',  icon: '🧩', label: 'Widget หน้าแรก' },
-  { key: 'navbar',   icon: '🔝', label: 'Navbar' },
-  { key: 'footer',   icon: '🔗', label: 'Footer' },
+  { key: 'navbar',    icon: '🔝', label: 'Navbar' },
+  { key: 'personnel', icon: '👥', label: 'บุคลากร' },
+  { key: 'footer',    icon: '🔗', label: 'Footer' },
 ]
 
 const SPEED_PRESETS = [
@@ -1722,6 +1744,11 @@ function loadConfig() {
   // Top bar
   form.value.topbar_enabled = config.value.topbar_enabled ?? true
   form.value.topbar_text    = config.value.topbar_text    ?? ''
+
+  // Personnel — admin departments
+  form.value.admin_departments = Array.isArray(config.value.admin_departments) && config.value.admin_departments.length
+    ? [...config.value.admin_departments]
+    : ['กลุ่มบริหารวิชาการ', 'กลุ่มบริหารงบประมาณ', 'กลุ่มบริหารงานบุคคล', 'กลุ่มบริหารทั่วไป']
 
   // Announcement banner
   form.value.announcement_enabled = config.value.announcement_enabled ?? false

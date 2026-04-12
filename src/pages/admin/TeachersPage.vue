@@ -167,6 +167,34 @@
               <input v-model="teacherForm.subjects_taught" class="input-field" placeholder="เช่น คณิตศาสตร์พื้นฐาน, แคลคูลัส" />
             </div>
 
+            <!-- งานบริหาร -->
+            <div class="bg-indigo-50 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <label class="text-sm font-semibold text-indigo-800">🏢 งานบริหาร (เพิ่มได้หลายกลุ่ม)</label>
+                <button type="button" @click="addDeptRow"
+                  class="text-xs bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700 transition-colors">
+                  + เพิ่มกลุ่ม
+                </button>
+              </div>
+              <div v-if="!deptAssignments.length" class="text-xs text-indigo-400 text-center py-2">
+                ยังไม่ได้กำหนดงานบริหาร
+              </div>
+              <div v-for="(row, idx) in deptAssignments" :key="idx" class="flex items-center gap-2 mb-2">
+                <select v-model="row.department_name" class="input-field flex-1 text-sm">
+                  <option value="">-- เลือกกลุ่ม --</option>
+                  <option v-for="d in adminDepartments" :key="d" :value="d">{{ d }}</option>
+                </select>
+                <select v-model="row.department_role" class="input-field w-40 text-sm">
+                  <option value="กรรมการ">กรรมการ</option>
+                  <option value="เลขานุการ">เลขานุการ</option>
+                  <option value="รองหัวหน้ากลุ่ม">รองหัวหน้ากลุ่ม</option>
+                  <option value="หัวหน้ากลุ่ม">หัวหน้ากลุ่ม</option>
+                </select>
+                <button type="button" @click="deptAssignments.splice(idx, 1)"
+                  class="p-1.5 rounded-lg text-indigo-300 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">✕</button>
+              </div>
+            </div>
+
             <!-- ข้อมูลส่วนตัว -->
             <div class="grid grid-cols-2 gap-3">
               <div>
@@ -249,10 +277,19 @@ import { ref, computed, onMounted } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import ImageUploadCrop from '../../components/admin/ImageUploadCrop.vue'
 import { supabase } from '../../lib/supabase'
+import { useSchoolConfig } from '../../composables/useSchoolConfig'
 
 // ── Constants ────────────────────────────────────────────────
 const subjectGroups = ['ภาษาไทย','คณิตศาสตร์','วิทยาศาสตร์และเทคโนโลยี','สังคมศึกษาฯ','ภาษาต่างประเทศ','สุขศึกษาและพลศึกษา','ศิลปะ','การงานอาชีพ','กิจกรรมพัฒนาผู้เรียน']
 const positions = ['ผู้อำนวยการโรงเรียน','รองผู้อำนวยการ','ครู','ครูผู้ช่วย','พนักงานราชการ','ลูกจ้างประจำ','ลูกจ้างชั่วคราว','ธุรการโรงเรียน']
+const DEFAULT_DEPTS = ['กลุ่มบริหารวิชาการ','กลุ่มบริหารงบประมาณ','กลุ่มบริหารงานบุคคล','กลุ่มบริหารทั่วไป']
+
+const { config } = useSchoolConfig()
+const adminDepartments = computed(() =>
+  Array.isArray(config.value?.admin_departments) && config.value.admin_departments.length
+    ? config.value.admin_departments
+    : DEFAULT_DEPTS
+)
 
 // ── State ────────────────────────────────────────────────────
 const teachers          = ref([])
@@ -267,6 +304,7 @@ const deleteTarget      = ref(null)
 const search            = ref('')
 const filterGroup       = ref('')
 const filterPos         = ref('')
+const deptAssignments   = ref([])   // [{ department_name, department_role }]
 
 const emptyForm = () => ({
   prefix: 'นาย', first_name: '', last_name: '', position: 'ครู',
@@ -297,17 +335,22 @@ async function loadTeachers() {
 }
 
 // ── Open Add/Edit ─────────────────────────────────────────────
+function addDeptRow() {
+  deptAssignments.value.push({ department_name: '', department_role: 'กรรมการ' })
+}
+
 function openAdd() {
-  editId.value      = null
-  pendingNewId.value = crypto.randomUUID()   // generate UUID ล่วงหน้าสำหรับรูปภาพ
+  editId.value       = null
+  pendingNewId.value = crypto.randomUUID()
   teacherForm.value  = emptyForm()
+  deptAssignments.value = []
   formError.value    = ''
   showForm.value     = true
 }
 
-function openEdit(t) {
+async function openEdit(t) {
   editId.value      = t.id
-  pendingNewId.value = ''   // ไม่ใช้ตอน edit
+  pendingNewId.value = ''
   teacherForm.value = {
     prefix:             t.prefix || 'นาย',
     first_name:         t.first_name || '',
@@ -321,14 +364,20 @@ function openEdit(t) {
     email:              t.email || '',
     birth_date:         t.birth_date || '',
     group_role:         t.group_role || '',
-    profile_id:         t.profile_id || '',   // โหลด profile link ที่มีอยู่
+    profile_id:         t.profile_id || '',
     profile_image_url:  t.profile_image_url || '',
   }
+  // โหลด dept assignments
+  const { data } = await supabase
+    .from('teacher_department_assignments')
+    .select('department_name, department_role')
+    .eq('teacher_id', t.id)
+  deptAssignments.value = data || []
   formError.value = ''
   showForm.value  = true
 }
 
-function closeForm() { showForm.value = false; editId.value = null }
+function closeForm() { showForm.value = false; editId.value = null; deptAssignments.value = [] }
 
 // ── Save ─────────────────────────────────────────────────────
 async function handleSave() {
@@ -338,30 +387,32 @@ async function handleSave() {
     const { profile_id, ...payload } = teacherForm.value
     if (!payload.first_name || !payload.last_name) throw new Error('กรุณากรอกชื่อ-นามสกุล')
 
+    let teacherId = editId.value
     if (editId.value) {
-      // UPDATE — ถ้าเปลี่ยน profile link ด้วย
-      if (profile_id) {
-        payload.profile_id = profile_id
-      }
+      if (profile_id) payload.profile_id = profile_id
       const { error } = await supabase.from('teacher_profiles').update(payload).eq('id', editId.value)
       if (error) throw error
-      // อัปเดต role/approve ถ้าเชื่อมใหม่
       if (profile_id) {
         await supabase.from('profiles').update({ role: 'teacher', is_approved: true }).eq('id', profile_id)
       }
     } else {
-      // INSERT — id คือ UUID อิสระ (ไม่ขึ้นกับ profiles อีกต่อไป)
       payload.id = pendingNewId.value
-      if (profile_id) {
-        // เชื่อมบัญชี: เก็บ profile_id แยก
-        payload.profile_id = profile_id
-      }
+      teacherId  = pendingNewId.value
+      if (profile_id) payload.profile_id = profile_id
       const { error } = await supabase.from('teacher_profiles').insert(payload)
       if (error) throw error
-      // อัปเดต role/approve ของบัญชีที่เชื่อม
       if (profile_id) {
         await supabase.from('profiles').update({ role: 'teacher', is_approved: true }).eq('id', profile_id)
       }
+    }
+
+    // บันทึก dept assignments — ลบเก่าแล้ว insert ใหม่
+    await supabase.from('teacher_department_assignments').delete().eq('teacher_id', teacherId)
+    const validDepts = deptAssignments.value.filter(d => d.department_name?.trim())
+    if (validDepts.length) {
+      await supabase.from('teacher_department_assignments').insert(
+        validDepts.map(d => ({ teacher_id: teacherId, department_name: d.department_name, department_role: d.department_role || 'กรรมการ' }))
+      )
     }
 
     closeForm()
