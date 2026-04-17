@@ -13,19 +13,6 @@
 
     <div class="max-w-5xl mx-auto px-4 py-8">
 
-      <!-- Health Banner -->
-      <RouterLink to="/students-health"
-        class="flex items-center gap-4 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-2xl p-4 mb-6 hover:from-green-700 hover:to-teal-700 transition shadow-sm group">
-        <div class="text-3xl">🏥</div>
-        <div class="flex-1">
-          <p class="font-bold text-sm">สารสนเทศสุขภาพนักเรียน (BMI)</p>
-          <p class="text-green-200 text-xs mt-0.5">ดูสถิติน้ำหนัก ส่วนสูง และดัชนีมวลกายแยกตามชั้นเรียน</p>
-        </div>
-        <svg class="w-5 h-5 text-green-300 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-      </RouterLink>
-
       <!-- Session selector -->
       <div v-if="sessions.length" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
         <p class="text-xs font-semibold text-gray-500 mb-3 text-center">📅 เลือกช่วงข้อมูล</p>
@@ -199,6 +186,127 @@
           </div>
         </div>
 
+        <!-- ══ BMI Health Section ══════════════════════════════════════════════════ -->
+        <div class="mt-8">
+          <div class="flex items-center gap-3 mb-5">
+            <span class="w-1.5 h-6 bg-green-500 rounded-full inline-block"></span>
+            <h2 class="font-bold text-gray-900 text-lg">🏥 สุขภาพนักเรียน (BMI)</h2>
+            <span v-if="bmiLoading" class="text-xs text-gray-400 animate-pulse">กำลังโหลด...</span>
+            <span v-else-if="bmiStats.length" class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+              {{ bmiStats.length.toLocaleString() }} คน มีข้อมูล
+            </span>
+          </div>
+
+          <div v-if="bmiLoading" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 text-center">
+            <div class="w-10 h-10 border-4 border-green-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p class="text-gray-400 text-sm">กำลังโหลดข้อมูล BMI...</p>
+          </div>
+
+          <div v-else-if="!bmiStats.length" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 text-center text-gray-400">
+            <div class="text-4xl mb-3">⚖️</div>
+            <p>ยังไม่มีข้อมูลน้ำหนัก/ส่วนสูง</p>
+          </div>
+
+          <template v-else>
+            <!-- Summary row -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-center">
+                <div class="text-3xl font-black text-blue-700">{{ bmiAvg !== null ? bmiAvg.toFixed(1) : '-' }}</div>
+                <div class="text-xs text-gray-400 mt-1">BMI เฉลี่ย</div>
+              </div>
+              <div v-for="cat in BMI_CATS_PUB" :key="cat.key"
+                :class="['rounded-2xl shadow-sm border p-4 text-center', cat.light, cat.border]">
+                <div :class="['text-3xl font-black', cat.text]">
+                  {{ (bmiCounts[cat.key]||0).toLocaleString() }}
+                </div>
+                <div class="text-xs text-gray-500 mt-0.5">{{ cat.key }}</div>
+                <div :class="['text-[11px] font-medium mt-0.5', cat.text]">
+                  {{ bmiStats.length ? ((bmiCounts[cat.key]||0)/bmiStats.length*100).toFixed(1) : 0 }}%
+                </div>
+              </div>
+            </div>
+
+            <!-- Stacked distribution bar -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
+              <div class="font-semibold text-gray-700 mb-3 text-sm">สัดส่วนภาวะโภชนาการ</div>
+              <div class="flex h-10 rounded-2xl overflow-hidden gap-px mb-3">
+                <div v-for="cat in BMI_CATS_PUB" :key="'bar-'+cat.key"
+                  :class="[cat.color, 'flex items-center justify-center transition-all duration-700 overflow-hidden']"
+                  :style="{ width: `${Math.max(0,(bmiCounts[cat.key]||0)/bmiStats.length*100)}%` }">
+                  <span v-if="(bmiCounts[cat.key]||0)/bmiStats.length > 0.07"
+                    class="text-white text-xs font-bold drop-shadow">
+                    {{ ((bmiCounts[cat.key]||0)/bmiStats.length*100).toFixed(1) }}%
+                  </span>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-4 justify-center">
+                <div v-for="cat in BMI_CATS_PUB" :key="'leg-'+cat.key" class="flex items-center gap-1.5">
+                  <div :class="['w-3 h-3 rounded-full', cat.color]"></div>
+                  <span class="text-sm text-gray-600">{{ cat.key }}</span>
+                  <span :class="['text-sm font-bold', cat.text]">{{ (bmiCounts[cat.key]||0).toLocaleString() }}</span>
+                  <span class="text-xs text-gray-300">
+                    ({{ bmiStats.length ? ((bmiCounts[cat.key]||0)/bmiStats.length*100).toFixed(0) : 0 }}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- By Grade table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-bold text-gray-900">BMI แยกตามชั้นเรียน</h3>
+                <span class="text-xs text-gray-400">น้ำหนัก/ส่วนสูงล่าสุดของนักเรียนแต่ละคน</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                    <tr>
+                      <th class="py-3 px-5 text-left">ชั้น</th>
+                      <th class="py-3 px-4 text-center text-blue-500">ผอม</th>
+                      <th class="py-3 px-4 text-center text-green-600">สมส่วน</th>
+                      <th class="py-3 px-4 text-center text-amber-500">น้ำหนักเกิน</th>
+                      <th class="py-3 px-4 text-center text-red-500">อ้วน</th>
+                      <th class="py-3 px-4 text-center text-teal-600">BMI เฉลี่ย</th>
+                      <th class="py-3 px-5 text-left hidden md:table-cell">สัดส่วน</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-50">
+                    <tr v-for="g in bmiByGrade" :key="'pub-'+g.grade" class="hover:bg-gray-50 transition">
+                      <td class="py-3 px-5 font-bold text-gray-800">{{ g.grade }}</td>
+                      <td class="py-3 px-4 text-center font-semibold text-blue-500">{{ g['ผอม']||0 }}</td>
+                      <td class="py-3 px-4 text-center font-semibold text-green-600">{{ g['สมส่วน']||0 }}</td>
+                      <td class="py-3 px-4 text-center font-semibold text-amber-500">{{ g['น้ำหนักเกิน']||0 }}</td>
+                      <td class="py-3 px-4 text-center font-semibold text-red-500">{{ g['อ้วน']||0 }}</td>
+                      <td class="py-3 px-4 text-center font-mono font-bold"
+                        :class="g.total&&(g.bmiSum/g.total)<18.5?'text-blue-500':g.total&&(g.bmiSum/g.total)<23?'text-green-600':g.total&&(g.bmiSum/g.total)<27.5?'text-amber-500':'text-red-500'">
+                        {{ g.total ? (g.bmiSum/g.total).toFixed(1) : '-' }}
+                      </td>
+                      <td class="py-3 px-5 hidden md:table-cell">
+                        <div class="flex h-5 rounded-full overflow-hidden gap-px w-32" v-if="g.total">
+                          <div v-for="cat in BMI_CATS_PUB" :key="'st-'+cat.key+g.grade"
+                            :class="cat.color"
+                            :style="{ width: `${(g[cat.key]||0)/g.total*100}%` }">
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- เกณฑ์อ้างอิง -->
+            <div class="mt-4 bg-gray-50 rounded-2xl border border-gray-100 p-4 text-xs text-gray-500 text-center">
+              เกณฑ์ BMI มาตรฐานไทย:
+              <span class="text-blue-500 font-semibold ml-2">ผอม &lt;18.5</span> ·
+              <span class="text-green-600 font-semibold">สมส่วน 18.5–22.9</span> ·
+              <span class="text-amber-500 font-semibold">น้ำหนักเกิน 23–27.4</span> ·
+              <span class="text-red-500 font-semibold">อ้วน ≥27.5</span>
+              <span class="ml-2 text-gray-400">· สูตร BMI = น้ำหนัก(กก.) ÷ ส่วนสูง²(ม.)</span>
+            </div>
+          </template>
+        </div>
+
       </template>
     </div>
   </PublicLayout>
@@ -361,6 +469,105 @@ async function selectSession(s) {
   loading.value = false
 }
 
+// ══ BMI Section ════════════════════════════════════════════════════════════════
+const bmiLoading  = ref(false)
+const bmiRawData  = ref([])   // { grade_level, weight, height } จาก snapshots ล่าสุดของนักเรียนปัจจุบัน
+
+const BMI_CATS_PUB = [
+  { key: 'ผอม',          color: 'bg-blue-400',  light: 'bg-blue-50',  text: 'text-blue-500',  border: 'border-blue-200'  },
+  { key: 'สมส่วน',      color: 'bg-green-400', light: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
+  { key: 'น้ำหนักเกิน', color: 'bg-amber-400', light: 'bg-amber-50', text: 'text-amber-500', border: 'border-amber-200' },
+  { key: 'อ้วน',        color: 'bg-red-400',   light: 'bg-red-50',   text: 'text-red-500',   border: 'border-red-200'   },
+]
+
+function calcBMIPub(weight, height) {
+  const w = parseFloat(weight), h = parseFloat(height)
+  if (!w || !h || h < 50) return null
+  return w / ((h / 100) ** 2)
+}
+function bmiCatPub(bmi) {
+  if (bmi === null) return null
+  if (bmi < 18.5) return 'ผอม'
+  if (bmi < 23)   return 'สมส่วน'
+  if (bmi < 27.5) return 'น้ำหนักเกิน'
+  return 'อ้วน'
+}
+function numFromGradePub(v) { return parseFloat(String(v).replace(/[^\d.]/g,'')) || 0 }
+
+const bmiStats = computed(() =>
+  bmiRawData.value
+    .map(s => ({ ...s, bmi: calcBMIPub(s.weight, s.height) }))
+    .filter(s => s.bmi !== null)
+)
+const bmiAvg = computed(() =>
+  bmiStats.value.length ? bmiStats.value.reduce((a,s)=>a+s.bmi,0)/bmiStats.value.length : null
+)
+const bmiCounts = computed(() => {
+  const c = { 'ผอม': 0, 'สมส่วน': 0, 'น้ำหนักเกิน': 0, 'อ้วน': 0 }
+  bmiStats.value.forEach(s => { const cat = bmiCatPub(s.bmi); if (cat) c[cat]++ })
+  return c
+})
+const bmiByGrade = computed(() => {
+  const map = {}
+  bmiStats.value.forEach(s => {
+    const g = s.grade_level || 'ไม่ระบุ'
+    if (!map[g]) map[g] = { grade:g, total:0, ผอม:0, สมส่วน:0, 'น้ำหนักเกิน':0, อ้วน:0, bmiSum:0 }
+    const cat = bmiCatPub(s.bmi)
+    if (cat) { map[g][cat]++; map[g].total++; map[g].bmiSum += s.bmi }
+  })
+  return Object.values(map).sort((a,b) => numFromGradePub(a.grade)-numFromGradePub(b.grade))
+})
+
+async function loadPublicBMI() {
+  bmiLoading.value = true
+  try {
+    // ดึง active students
+    const activeMap = {}
+    let from = 0
+    while (true) {
+      const { data } = await supabase
+        .from('students')
+        .select('student_code, grade_level')
+        .eq('is_active', true)
+        .range(from, from + 999)
+      if (!data?.length) break
+      data.forEach(s => { activeMap[s.student_code] = s })
+      if (data.length < 1000) break
+      from += 1000
+    }
+    const codes = Object.keys(activeMap)
+    if (!codes.length) { bmiRawData.value = []; return }
+
+    // ดึง snapshots ที่มี weight+height แล้วเก็บล่าสุดต่อคน
+    const snapMap = {}
+    for (let i = 0; i < codes.length; i += 500) {
+      const batch = codes.slice(i, i + 500)
+      const { data } = await supabase
+        .from('student_snapshots')
+        .select('student_code, weight, height, academic_year, semester')
+        .in('student_code', batch)
+      ;(data || []).forEach(snap => {
+        const w = parseFloat(snap.weight), h = parseFloat(snap.height)
+        if (!w || !h || h < 50) return
+        const cur = snapMap[snap.student_code]
+        if (!cur || snap.academic_year > cur.academic_year ||
+            (snap.academic_year === cur.academic_year && snap.semester > cur.semester)) {
+          snapMap[snap.student_code] = snap
+        }
+      })
+    }
+
+    bmiRawData.value = codes
+      .filter(code => snapMap[code])
+      .map(code => ({
+        grade_level: activeMap[code].grade_level,
+        weight: snapMap[code].weight,
+        height: snapMap[code].height,
+      }))
+  } catch (e) { console.error(e) }
+  finally { bmiLoading.value = false }
+}
+
 onMounted(async () => {
   const { data: sess } = await supabase.rpc('get_sis_sessions')
   sessions.value = Array.isArray(sess) ? sess : (sess || [])
@@ -369,5 +576,6 @@ onMounted(async () => {
   } else {
     loading.value = false
   }
+  loadPublicBMI()   // โหลด BMI แบบ background ไม่ต้องรอ
 })
 </script>

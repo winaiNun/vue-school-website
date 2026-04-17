@@ -49,6 +49,54 @@
           </div>
         </div>
 
+        <!-- BMI Compact Dashboard (reactive ตาม fGrade/fRoom) -->
+        <div v-if="bmiStats.length > 0" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-gray-700">🏥 สุขภาพ BMI</span>
+              <span class="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">
+                {{ bmiStats.length.toLocaleString() }} คน · เฉลี่ย <strong>{{ bmiAvg?.toFixed(1) }}</strong>
+              </span>
+            </div>
+            <button @click="switchTab('health')" class="text-xs text-blue-500 hover:text-blue-700 transition">รายละเอียด →</button>
+          </div>
+
+          <!-- Stacked bar -->
+          <div class="flex h-7 rounded-xl overflow-hidden gap-px mb-3">
+            <div v-for="cat in BMI_CATS" :key="cat.key"
+              :class="[cat.color, 'transition-all duration-700 flex items-center justify-center overflow-hidden']"
+              :style="{ width: `${Math.max(0,(bmiCounts[cat.key]||0)/bmiStats.length*100)}%` }"
+              :title="`${cat.key}: ${bmiCounts[cat.key]||0} คน (${((bmiCounts[cat.key]||0)/bmiStats.length*100).toFixed(1)}%)`">
+              <span v-if="(bmiCounts[cat.key]||0)/bmiStats.length > 0.08" class="text-white text-xs font-bold drop-shadow">
+                {{ ((bmiCounts[cat.key]||0)/bmiStats.length*100).toFixed(0) }}%
+              </span>
+            </div>
+          </div>
+
+          <!-- Legend cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div v-for="cat in BMI_CATS" :key="'leg-'+cat.key"
+              :class="['flex items-center justify-between rounded-lg px-3 py-2 border', cat.light, cat.border]">
+              <div class="flex items-center gap-1.5">
+                <div :class="['w-2 h-2 rounded-full flex-shrink-0', cat.color]"></div>
+                <span class="text-xs text-gray-700 font-medium">{{ cat.key }}</span>
+              </div>
+              <div class="text-right">
+                <span :class="['text-sm font-bold', cat.text]">{{ (bmiCounts[cat.key]||0).toLocaleString() }}</span>
+                <span class="text-[10px] text-gray-400 ml-1">{{ bmiStats.length ? ((bmiCounts[cat.key]||0)/bmiStats.length*100).toFixed(0) : 0 }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ไม่มีข้อมูล notice -->
+          <div v-if="noWeightCount > 0" class="mt-2 text-[11px] text-amber-600 text-center">
+            ⚠️ {{ noWeightCount.toLocaleString() }} คน ไม่มีข้อมูลน้ำหนัก/ส่วนสูง
+          </div>
+        </div>
+        <div v-else-if="loadingBMI" class="bg-gray-50 rounded-xl p-3 mb-5 text-center text-xs text-gray-400 animate-pulse">
+          กำลังโหลดข้อมูล BMI...
+        </div>
+
         <!-- Filter bar -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
           <div class="flex flex-wrap items-end gap-3">
@@ -455,10 +503,11 @@
       <!-- ═══════════════════════════════════════ -->
       <template v-if="activeTab === 'health'">
         <div v-if="loadingBMI" class="text-center py-16 text-gray-400 animate-pulse">กำลังโหลด...</div>
-        <div v-else-if="!latestImport" class="text-center py-20">
-          <div class="text-5xl mb-4">📊</div>
-          <p class="text-gray-400">ยังไม่มีข้อมูลการนำเข้า DMC กรุณานำเข้าข้อมูลก่อน</p>
-          <button @click="switchTab('import')" class="mt-4 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">เริ่มนำเข้า DMC</button>
+        <div v-else-if="bmiData.length === 0" class="text-center py-20">
+          <div class="text-5xl mb-4">⚖️</div>
+          <p class="text-gray-500 font-medium">ยังไม่มีข้อมูลน้ำหนัก/ส่วนสูง</p>
+          <p class="text-gray-400 text-sm mt-1">กรุณานำเข้าไฟล์ DMC ที่มีคอลัมน์น้ำหนักและส่วนสูง</p>
+          <button @click="switchTab('import')" class="mt-4 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">นำเข้า DMC →</button>
         </div>
         <template v-else>
 
@@ -482,7 +531,7 @@
                 </select>
               </div>
               <div class="ml-auto text-right text-xs text-gray-400">
-                ข้อมูลจาก <span class="font-semibold text-gray-600">{{ latestImport.label }}</span>
+                นักเรียนปัจจุบัน · น้ำหนัก/ส่วนสูงล่าสุดที่บันทึก
               </div>
             </div>
           </div>
@@ -1267,34 +1316,58 @@ const maxCount = computed(() => Math.max(...imports.value.map(i=>i.total_count),
 
 // ══ TAB 4: Health / BMI ═════════════════════════════════════════════════════════
 const loadingBMI = ref(false)
-const bmiData    = ref([])   // rows from student_snapshots (latest import)
+const bmiData    = ref([])   // นักเรียนปัจจุบัน + น้ำหนัก/ส่วนสูงล่าสุดที่มีข้อมูล
 
 async function loadBMIData() {
   loadingBMI.value = true
   try {
-    // ใช้ latestImport ที่โหลดแล้ว หรือดึงใหม่
-    let importId = latestImport.value?.id
-    if (!importId) {
-      const { data } = await supabase.from('dmc_imports')
-        .select('id').order('imported_at', { ascending: false }).limit(1).maybeSingle()
-      importId = data?.id
-    }
-    if (!importId) { loadingBMI.value = false; return }
-
-    let all = [], from = 0
+    // ── Step 1: ดึง active students (grade, room, gender, prefix) ─────────────
+    const activeMap = {}
+    let from = 0
     while (true) {
       const { data, error } = await supabase
-        .from('student_snapshots')
-        .select('student_code, prefix, gender, grade_level, room, weight, height')
-        .eq('import_id', importId)
+        .from('students')
+        .select('student_code, grade_level, room, gender, prefix')
+        .eq('is_active', true)
         .range(from, from + 999)
       if (error) throw error
       if (!data?.length) break
-      all = all.concat(data)
+      data.forEach(s => { activeMap[s.student_code] = s })
       if (data.length < 1000) break
       from += 1000
     }
-    bmiData.value = all
+    const codes = Object.keys(activeMap)
+    if (!codes.length) { bmiData.value = []; return }
+
+    // ── Step 2: ดึง snapshots ที่มี weight+height ของนักเรียนเหล่านั้น ──────────
+    // batch ทีละ 500 เพราะ .in() มี limit
+    const snapMap = {}   // student_code → snapshot ล่าสุดที่มี weight/height
+    for (let i = 0; i < codes.length; i += 500) {
+      const batch = codes.slice(i, i + 500)
+      const { data } = await supabase
+        .from('student_snapshots')
+        .select('student_code, weight, height, academic_year, semester')
+        .in('student_code', batch)
+      ;(data || []).forEach(snap => {
+        const w = parseFloat(snap.weight), h = parseFloat(snap.height)
+        if (!w || !h || h < 50) return   // ข้ามข้อมูลที่ไม่สมเหตุสมผล
+        const cur = snapMap[snap.student_code]
+        if (!cur ||
+            snap.academic_year > cur.academic_year ||
+            (snap.academic_year === cur.academic_year && snap.semester > cur.semester)) {
+          snapMap[snap.student_code] = snap   // เก็บล่าสุด
+        }
+      })
+    }
+
+    // ── Step 3: รวม active student + snapshot ล่าสุด ──────────────────────────
+    bmiData.value = codes
+      .filter(code => snapMap[code])
+      .map(code => ({
+        ...activeMap[code],
+        weight: snapMap[code].weight,
+        height: snapMap[code].height,
+      }))
   } catch (e) { console.error(e) }
   finally { loadingBMI.value = false }
 }

@@ -122,7 +122,6 @@ const menuItems = computed(() => [
   { label: 'กิจกรรม', to: '/activities', icon: '🖼️' },
   { label: 'คลังสื่อ', to: '/media', icon: '📚' },
   { label: 'บุคลากร', to: '/personnel', icon: '👨‍🏫' },
-  { label: 'สุขภาพนักเรียน', to: '/students-health', icon: '🏥' },
   ...(navSystems.value.length ? [{
     label: 'ระบบงาน',
     icon: '🏫',
@@ -142,7 +141,6 @@ const flatMenu = computed(() => [
   { label: 'กิจกรรม', to: '/activities', icon: '🖼️' },
   { label: 'คลังสื่อ', to: '/media', icon: '📚' },
   { label: 'บุคลากร', to: '/personnel', icon: '👨‍🏫' },
-  { label: 'สุขภาพนักเรียน', to: '/students-health', icon: '🏥' },
   ...navSystems.value.filter(s => !s.is_external).map(s => ({ label: s.label, to: s.url, icon: s.icon || '🔗' })),
   { label: 'ติดต่อเรา', to: '/#contact', icon: '📞' },
 ])
