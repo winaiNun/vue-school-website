@@ -39,6 +39,7 @@ const routes = [
   { path: '/admin/sis/import',   name: 'AdminSisImport',  component: () => import('../pages/admin/SisImportPage.vue'),        meta: { requiresAdmin: true } },
   { path: '/admin/api-keys',     name: 'AdminApiKeys',    component: () => import('../pages/admin/ApiKeysPage.vue'),          meta: { requiresAdmin: true } },
   { path: '/students-info',      name: 'StudentsInfo',    component: () => import('../pages/public/StudentsDashboardPage.vue') },
+  { path: '/students-health',   name: 'StudentsHealth',  component: () => import('../pages/public/StudentHealthPage.vue') },
   { path: '/calendar',           name: 'Calendar',        component: () => import('../pages/public/CalendarPage.vue') },
 
   // Teacher
@@ -58,7 +59,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   // หน้า public ไม่ต้องเช็ค auth
-  const publicRoutes = ['Home', 'News', 'NewsDetail', 'Activities', 'Media', 'MediaDetail', 'Personnel', 'PersonnelStats', 'OrgDetail', 'WpaPublic', 'StudentsInfo', 'Calendar', 'Documents']
+  const publicRoutes = ['Home', 'News', 'NewsDetail', 'Activities', 'Media', 'MediaDetail', 'Personnel', 'PersonnelStats', 'OrgDetail', 'WpaPublic', 'StudentsInfo', 'StudentsHealth', 'Calendar', 'Documents']
   if (publicRoutes.includes(to.name)) return
 
   // รอให้ initAuth() เสร็จก่อน (ป้องกัน auth-lock ชนกัน)

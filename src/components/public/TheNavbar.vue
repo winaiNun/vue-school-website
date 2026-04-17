@@ -1,7 +1,7 @@
 <template>
   <header class="sticky top-0 z-50">
     <!-- Top bar -->
-    <div v-if="config?.topbar_enabled !== false" class="bg-blue-900 text-white text-xs py-1.5 px-4 flex justify-between items-center">
+    <div v-if="config?.topbar_enabled !== false" class="text-white text-xs py-1.5 px-4 flex justify-between items-center" :style="navStyle.topBar">
       <span>{{ config?.topbar_text || config?.affiliation || 'สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน' }}</span>
       <div class="flex gap-4">
         <a v-if="config?.social_facebook" :href="config.social_facebook" target="_blank" class="hover:text-yellow-300 transition-colors">Facebook</a>
@@ -16,7 +16,7 @@
           <!-- Logo + Name -->
           <RouterLink to="/" class="flex items-center gap-3 flex-shrink-0">
             <img v-if="config?.logo_url" :src="config.logo_url" class="w-12 h-12 object-contain" />
-            <div v-else class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center">
+            <div v-else class="w-12 h-12 rounded-full flex items-center justify-center" :style="navStyle.loginBtn">
               <span class="text-white text-lg font-bold">ร</span>
             </div>
             <div class="block">
@@ -32,7 +32,8 @@
 
           <!-- Login Button (desktop) -->
           <RouterLink to="/login"
-            class="hidden lg:flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors ml-2"
+            class="hidden lg:flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors ml-2"
+            :style="navStyle.loginBtn"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
@@ -61,7 +62,8 @@
               <span>{{ item.icon }}</span>{{ item.label }}
             </RouterLink>
             <RouterLink to="/login" @click="mobileOpen = false"
-              class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium mt-2"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white text-sm font-medium mt-2"
+              :style="navStyle.mobileBtn"
             >
               <span>👤</span>เข้าสู่ระบบ
             </RouterLink>
@@ -80,6 +82,22 @@ import NavLink from './NavLink.vue'
 
 const { config } = useSchoolConfig()
 const mobileOpen = ref(false)
+
+// คำนวณ gradient style จาก nav_color
+const navStyle = computed(() => {
+  const hex = config.value?.nav_color || '#1e3a8a'
+  const h   = hex.replace('#', '')
+  const r   = parseInt(h.slice(0,2), 16), g = parseInt(h.slice(2,4), 16), b = parseInt(h.slice(4,6), 16)
+  const clamp = (v) => Math.min(255, Math.max(0, Math.round(v)))
+  const toHex = (v) => clamp(v).toString(16).padStart(2,'0')
+  const darker  = `#${toHex(r*.70)}${toHex(g*.70)}${toHex(b*.78)}`
+  const lighter = `#${toHex(r*1.15)}${toHex(g*1.12)}${toHex(b*1.20)}`
+  return {
+    topBar:    { background: `linear-gradient(135deg, ${darker} 0%, ${hex} 100%)` },
+    loginBtn:  { backgroundColor: hex },
+    mobileBtn: { backgroundColor: hex },
+  }
+})
 
 const orgPages   = ref([])  // ข้อมูลพื้นฐาน
 const navSystems = ref([])  // ระบบงาน
@@ -104,6 +122,7 @@ const menuItems = computed(() => [
   { label: 'กิจกรรม', to: '/activities', icon: '🖼️' },
   { label: 'คลังสื่อ', to: '/media', icon: '📚' },
   { label: 'บุคลากร', to: '/personnel', icon: '👨‍🏫' },
+  { label: 'สุขภาพนักเรียน', to: '/students-health', icon: '🏥' },
   ...(navSystems.value.length ? [{
     label: 'ระบบงาน',
     icon: '🏫',
@@ -123,6 +142,7 @@ const flatMenu = computed(() => [
   { label: 'กิจกรรม', to: '/activities', icon: '🖼️' },
   { label: 'คลังสื่อ', to: '/media', icon: '📚' },
   { label: 'บุคลากร', to: '/personnel', icon: '👨‍🏫' },
+  { label: 'สุขภาพนักเรียน', to: '/students-health', icon: '🏥' },
   ...navSystems.value.filter(s => !s.is_external).map(s => ({ label: s.label, to: s.url, icon: s.icon || '🔗' })),
   { label: 'ติดต่อเรา', to: '/#contact', icon: '📞' },
 ])

@@ -13,6 +13,19 @@
 
     <div class="max-w-5xl mx-auto px-4 py-8">
 
+      <!-- Health Banner -->
+      <RouterLink to="/students-health"
+        class="flex items-center gap-4 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-2xl p-4 mb-6 hover:from-green-700 hover:to-teal-700 transition shadow-sm group">
+        <div class="text-3xl">🏥</div>
+        <div class="flex-1">
+          <p class="font-bold text-sm">สารสนเทศสุขภาพนักเรียน (BMI)</p>
+          <p class="text-green-200 text-xs mt-0.5">ดูสถิติน้ำหนัก ส่วนสูง และดัชนีมวลกายแยกตามชั้นเรียน</p>
+        </div>
+        <svg class="w-5 h-5 text-green-300 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </RouterLink>
+
       <!-- Session selector -->
       <div v-if="sessions.length" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
         <p class="text-xs font-semibold text-gray-500 mb-3 text-center">📅 เลือกช่วงข้อมูล</p>
