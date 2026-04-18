@@ -7,12 +7,46 @@
 --   1. สร้าง Supabase project ใหม่
 --   2. คัดลอก SQL ทั้งหมดนี้วางใน SQL Editor แล้วกด Run
 --   3. ไปที่ Authentication → สมัครบัญชีผู้ใช้แรก
---   4. รันส่วน "สร้าง Admin" ด้านล่างสุด (แก้ email ให้ตรง)
+--   4. รันส่วน PART 6 ด้านล่างสุด (แก้ email ให้ตรง) แล้วกด Run
 -- ============================================================
 
 
 -- ============================================================
--- PART 1: Helper Functions
+-- PART 1: profiles (ต้องสร้างก่อน เพราะ functions อ้างอิง)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id                UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email             VARCHAR(255) UNIQUE NOT NULL,
+  full_name         VARCHAR(200) DEFAULT '',
+  role              VARCHAR(20)  DEFAULT 'pending'
+                    CHECK (role IN ('admin', 'teacher', 'staff', 'pending')),
+  is_approved       BOOLEAN      DEFAULT false,
+  avatar_url        TEXT         DEFAULT '',
+  profile_image_url TEXT         DEFAULT '',
+  created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "profiles: select"           ON public.profiles;
+DROP POLICY IF EXISTS "profiles: update"           ON public.profiles;
+DROP POLICY IF EXISTS "profiles: read own"         ON public.profiles;
+DROP POLICY IF EXISTS "profiles: admin read all"   ON public.profiles;
+DROP POLICY IF EXISTS "profiles: update own"       ON public.profiles;
+DROP POLICY IF EXISTS "profiles: admin update all" ON public.profiles;
+DROP POLICY IF EXISTS "profiles: read"             ON public.profiles;
+CREATE POLICY "profiles: read"
+  ON public.profiles FOR SELECT TO authenticated
+  USING (id = auth.uid() OR public.get_my_role() = 'admin');
+CREATE POLICY "profiles: update"
+  ON public.profiles FOR UPDATE TO authenticated
+  USING (id = auth.uid() OR public.get_my_role() = 'admin')
+  WITH CHECK (id = auth.uid() OR public.get_my_role() = 'admin');
+
+
+-- ============================================================
+-- PART 2: Helper Functions (อ้างอิง profiles ได้แล้ว)
 -- ============================================================
 
 -- ดึง role โดยไม่ recursive (ใช้ใน RLS ทุกที่)
@@ -43,13 +77,12 @@ CREATE TRIGGER on_auth_user_created
 
 
 -- ============================================================
--- PART 2: Tables
+-- PART 3: Tables
 -- ============================================================
 
--- ─── 2.1 school_config ──────────────────────────────────────
+-- ─── 3.1 school_config ──────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.school_config (
   id                    SERIAL PRIMARY KEY,
-  -- ข้อมูลพื้นฐาน
   school_code           VARCHAR(20)   DEFAULT '',
   obec_smis_code        VARCHAR(20)   DEFAULT '',
   area_code             VARCHAR(10)   DEFAULT '',
@@ -66,7 +99,6 @@ CREATE TABLE IF NOT EXISTS public.school_config (
   total_rooms           INTEGER       DEFAULT 0,
   established_year      INTEGER       DEFAULT 2500,
   school_size           VARCHAR(50)   DEFAULT 'กลาง',
-  -- ที่ตั้ง
   address               TEXT          DEFAULT '',
   address_no            VARCHAR(20)   DEFAULT '',
   address_moo           VARCHAR(10)   DEFAULT '',
@@ -77,20 +109,17 @@ CREATE TABLE IF NOT EXISTS public.school_config (
   zipcode               VARCHAR(10)   DEFAULT '',
   lat                   DECIMAL(10,7) DEFAULT NULL,
   lng                   DECIMAL(10,7) DEFAULT NULL,
-  -- ผู้บริหาร
   director_prefix       VARCHAR(20)   DEFAULT 'นาย',
   director_name         VARCHAR(100)  DEFAULT '',
   director_phone        VARCHAR(20)   DEFAULT '',
   director_image_url    TEXT          DEFAULT '',
   deputy_directors      JSONB         DEFAULT '[]',
-  -- ติดต่อ
   phone                 VARCHAR(20)   DEFAULT '',
   fax                   VARCHAR(20)   DEFAULT '',
   email                 VARCHAR(100)  DEFAULT '',
   website               VARCHAR(200)  DEFAULT '',
   affiliation           VARCHAR(200)  DEFAULT 'สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน',
   area_name             VARCHAR(200)  DEFAULT '',
-  -- โซเชียล
   social_facebook       VARCHAR(300)  DEFAULT '',
   social_line           VARCHAR(300)  DEFAULT '',
   social_youtube        VARCHAR(300)  DEFAULT '',
@@ -99,10 +128,8 @@ CREATE TABLE IF NOT EXISTS public.school_config (
   show_social_line      BOOLEAN       DEFAULT true,
   show_social_youtube   BOOLEAN       DEFAULT true,
   show_social_tiktok    BOOLEAN       DEFAULT true,
-  -- รูปภาพ
   logo_url              TEXT          DEFAULT '',
   banner_images         JSONB         DEFAULT '[]',
-  -- toggle สาธารณะ
   show_public_bmi       BOOLEAN       DEFAULT false,
   updated_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -122,37 +149,7 @@ CREATE POLICY "school_config: admin update"
   WITH CHECK (public.get_my_role() = 'admin');
 
 
--- ─── 2.2 profiles ────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id                UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email             VARCHAR(255) UNIQUE NOT NULL,
-  full_name         VARCHAR(200) DEFAULT '',
-  role              VARCHAR(20)  DEFAULT 'pending'
-                    CHECK (role IN ('admin', 'teacher', 'staff', 'pending')),
-  is_approved       BOOLEAN      DEFAULT false,
-  avatar_url        TEXT         DEFAULT '',
-  profile_image_url TEXT         DEFAULT '',
-  created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "profiles: select"        ON public.profiles;
-DROP POLICY IF EXISTS "profiles: update"        ON public.profiles;
-DROP POLICY IF EXISTS "profiles: read own"      ON public.profiles;
-DROP POLICY IF EXISTS "profiles: admin read all" ON public.profiles;
-DROP POLICY IF EXISTS "profiles: update own"    ON public.profiles;
-DROP POLICY IF EXISTS "profiles: admin update all" ON public.profiles;
-CREATE POLICY "profiles: read"
-  ON public.profiles FOR SELECT TO authenticated
-  USING (id = auth.uid() OR public.get_my_role() = 'admin');
-CREATE POLICY "profiles: update"
-  ON public.profiles FOR UPDATE TO authenticated
-  USING (id = auth.uid() OR public.get_my_role() = 'admin')
-  WITH CHECK (id = auth.uid() OR public.get_my_role() = 'admin');
-
-
--- ─── 2.3 teacher_profiles ────────────────────────────────────
+-- ─── 3.2 teacher_profiles ────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.teacher_profiles (
   id                    UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   employee_id           VARCHAR(20)  DEFAULT '',
@@ -179,9 +176,10 @@ CREATE TABLE IF NOT EXISTS public.teacher_profiles (
 );
 
 ALTER TABLE public.teacher_profiles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "teacher_profiles: select" ON public.teacher_profiles;
-DROP POLICY IF EXISTS "teacher_profiles: insert" ON public.teacher_profiles;
-DROP POLICY IF EXISTS "teacher_profiles: update" ON public.teacher_profiles;
+DROP POLICY IF EXISTS "teacher_profiles: select"      ON public.teacher_profiles;
+DROP POLICY IF EXISTS "teacher_profiles: insert"      ON public.teacher_profiles;
+DROP POLICY IF EXISTS "teacher_profiles: update"      ON public.teacher_profiles;
+DROP POLICY IF EXISTS "teacher_profiles: public read" ON public.teacher_profiles;
 CREATE POLICY "teacher_profiles: select"
   ON public.teacher_profiles FOR SELECT TO authenticated
   USING (id = auth.uid() OR public.get_my_role() = 'admin');
@@ -191,13 +189,11 @@ CREATE POLICY "teacher_profiles: insert"
 CREATE POLICY "teacher_profiles: update"
   ON public.teacher_profiles FOR UPDATE TO authenticated
   USING (id = auth.uid() OR public.get_my_role() = 'admin');
-
--- เปิดให้ anon อ่านได้สำหรับหน้าบุคลากร
 CREATE POLICY "teacher_profiles: public read"
   ON public.teacher_profiles FOR SELECT TO anon USING (true);
 
 
--- ─── 2.4 students ─────────────────────────────────────────────
+-- ─── 3.3 students ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.students (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id_card       VARCHAR(13) UNIQUE,
@@ -260,14 +256,14 @@ CREATE POLICY "students: delete"
   USING (public.get_my_role() = 'admin');
 
 
--- ─── 2.5 import_sessions (DMC นำเข้าข้อมูลนักเรียน) ─────────
+-- ─── 3.4 import_sessions ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.import_sessions (
-  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  academic_year    INTEGER     NOT NULL,
-  checkpoint       SMALLINT    NOT NULL,
+  id               UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  academic_year    INTEGER      NOT NULL,
+  checkpoint       SMALLINT     NOT NULL,
   checkpoint_label VARCHAR(100) DEFAULT '',
-  total_rows       INTEGER     DEFAULT 0,
-  imported_by      UUID        REFERENCES public.profiles(id) ON DELETE SET NULL,
+  total_rows       INTEGER      DEFAULT 0,
+  imported_by      UUID         REFERENCES public.profiles(id) ON DELETE SET NULL,
   imported_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -283,10 +279,10 @@ CREATE POLICY "import_sessions: admin write"
   WITH CHECK (public.get_my_role() = 'admin');
 
 
--- ─── 2.6 student_snapshots (ข้อมูลนักเรียน ณ วันนำเข้า) ─────
+-- ─── 3.5 student_snapshots ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.student_snapshots (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  import_session_id     UUID        NOT NULL REFERENCES public.import_sessions(id) ON DELETE CASCADE,
+  import_session_id     UUID         NOT NULL REFERENCES public.import_sessions(id) ON DELETE CASCADE,
   student_code          VARCHAR(20),
   student_id_card       VARCHAR(13),
   prefix                VARCHAR(20)  DEFAULT '',
@@ -334,7 +330,7 @@ CREATE POLICY "student_snapshots: admin write"
   WITH CHECK (public.get_my_role() = 'admin');
 
 
--- ─── 2.7 news ────────────────────────────────────────────────
+-- ─── 3.6 news ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.news (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title           VARCHAR(500) NOT NULL,
@@ -360,7 +356,7 @@ CREATE POLICY "news: admin all"
   WITH CHECK (public.get_my_role() = 'admin');
 
 
--- ─── 2.8 activities ──────────────────────────────────────────
+-- ─── 3.7 activities ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.activities (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title           VARCHAR(500) NOT NULL,
@@ -384,7 +380,7 @@ CREATE POLICY "activities: admin all"
   WITH CHECK (public.get_my_role() = 'admin');
 
 
--- ─── 2.9 api_keys ────────────────────────────────────────────
+-- ─── 3.8 api_keys ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.api_keys (
   id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   name          TEXT        NOT NULL,
@@ -411,7 +407,7 @@ CREATE POLICY "api_keys admin only"
   );
 
 
--- ─── 2.10 school_documents (คำสั่ง/ประกาศโรงเรียน) ───────────
+-- ─── 3.9 school_documents (คำสั่ง/ประกาศโรงเรียน) ────────────
 CREATE TABLE IF NOT EXISTS public.school_documents (
   id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   type          TEXT        NOT NULL CHECK (type IN ('order', 'announcement')),
@@ -429,8 +425,8 @@ CREATE TABLE IF NOT EXISTS public.school_documents (
 );
 
 ALTER TABLE public.school_documents ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "school_docs: public read"  ON public.school_documents;
-DROP POLICY IF EXISTS "school_docs: admin write"  ON public.school_documents;
+DROP POLICY IF EXISTS "school_docs: public read" ON public.school_documents;
+DROP POLICY IF EXISTS "school_docs: admin write" ON public.school_documents;
 CREATE POLICY "school_docs: public read"
   ON public.school_documents FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "school_docs: admin write"
@@ -450,30 +446,30 @@ CREATE POLICY "school_docs: admin write"
 
 
 -- ============================================================
--- PART 3: Indexes
+-- PART 4: Indexes
 -- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_profiles_role           ON public.profiles(role);
-CREATE INDEX IF NOT EXISTS idx_profiles_is_approved    ON public.profiles(is_approved);
-CREATE INDEX IF NOT EXISTS idx_students_grade          ON public.students(grade_level, room);
-CREATE INDEX IF NOT EXISTS idx_students_id_card        ON public.students(student_id_card);
-CREATE INDEX IF NOT EXISTS idx_students_name           ON public.students(first_name, last_name);
-CREATE INDEX IF NOT EXISTS idx_students_is_active      ON public.students(is_active);
-CREATE INDEX IF NOT EXISTS idx_students_code           ON public.students(student_code);
-CREATE INDEX IF NOT EXISTS idx_snapshots_session       ON public.student_snapshots(import_session_id);
-CREATE INDEX IF NOT EXISTS idx_snapshots_code          ON public.student_snapshots(student_code);
-CREATE INDEX IF NOT EXISTS idx_news_published          ON public.news(is_published, published_at DESC);
-CREATE INDEX IF NOT EXISTS idx_activities_published    ON public.activities(is_published, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_school_docs_type        ON public.school_documents(type);
-CREATE INDEX IF NOT EXISTS idx_school_docs_date        ON public.school_documents(issued_date DESC);
-CREATE INDEX IF NOT EXISTS idx_school_docs_year        ON public.school_documents(academic_year);
+CREATE INDEX IF NOT EXISTS idx_profiles_role        ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_is_approved ON public.profiles(is_approved);
+CREATE INDEX IF NOT EXISTS idx_students_grade       ON public.students(grade_level, room);
+CREATE INDEX IF NOT EXISTS idx_students_id_card     ON public.students(student_id_card);
+CREATE INDEX IF NOT EXISTS idx_students_name        ON public.students(first_name, last_name);
+CREATE INDEX IF NOT EXISTS idx_students_is_active   ON public.students(is_active);
+CREATE INDEX IF NOT EXISTS idx_students_code        ON public.students(student_code);
+CREATE INDEX IF NOT EXISTS idx_snapshots_session    ON public.student_snapshots(import_session_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_code       ON public.student_snapshots(student_code);
+CREATE INDEX IF NOT EXISTS idx_news_published       ON public.news(is_published, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activities_published ON public.activities(is_published, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_school_docs_type     ON public.school_documents(type);
+CREATE INDEX IF NOT EXISTS idx_school_docs_date     ON public.school_documents(issued_date DESC);
+CREATE INDEX IF NOT EXISTS idx_school_docs_year     ON public.school_documents(academic_year);
 
 
 -- ============================================================
--- PART 4: RPC Functions
+-- PART 5: RPC Functions
 -- ============================================================
 
--- ─── 4.1 get_storage_usage ───────────────────────────────────
+-- ─── 5.1 get_storage_usage ───────────────────────────────────
 CREATE OR REPLACE FUNCTION public.get_storage_usage()
 RETURNS TABLE (total_size bigint, file_count bigint)
 LANGUAGE sql SECURITY DEFINER STABLE
@@ -486,7 +482,7 @@ AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.get_storage_usage() TO authenticated;
 
--- ─── 4.2 get_public_bmi_stats (สำหรับหน้าสาธารณะ) ───────────
+-- ─── 5.2 get_public_bmi_stats ────────────────────────────────
 CREATE OR REPLACE FUNCTION public.get_public_bmi_stats()
 RETURNS TABLE (grade_level text, weight text, height text)
 LANGUAGE sql SECURITY DEFINER STABLE
@@ -506,7 +502,7 @@ AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.get_public_bmi_stats() TO anon, authenticated;
 
--- ─── 4.3 teacher_data_view + get_api_data ────────────────────
+-- ─── 5.3 teacher_data_view + get_api_data ────────────────────
 CREATE OR REPLACE VIEW public.teacher_data_view AS
 SELECT
   tp.id, tp.employee_id, tp.id_card, tp.prefix, tp.first_name, tp.last_name,
@@ -564,34 +560,35 @@ GRANT EXECUTE ON FUNCTION public.get_api_data(text) TO anon, authenticated;
 
 
 -- ============================================================
--- PART 5: Storage Buckets
+-- PART 6: Storage Buckets
 -- ============================================================
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
-  ('avatars',    'avatars',    true, 204800,  ARRAY['image/jpeg','image/png','image/webp']),
-  ('school',     'school',     true, 2097152, ARRAY['image/jpeg','image/png','image/webp']),
-  ('news',       'news',       true, 5242880, ARRAY['image/jpeg','image/png','image/webp']),
-  ('activities', 'activities', true, 5242880, ARRAY['image/jpeg','image/png','image/webp']),
-  ('teachers',   'teachers',   true, 5242880, ARRAY['image/jpeg','image/png','image/webp']),
+  ('avatars',    'avatars',    true, 204800,   ARRAY['image/jpeg','image/png','image/webp']),
+  ('school',     'school',     true, 2097152,  ARRAY['image/jpeg','image/png','image/webp']),
+  ('news',       'news',       true, 5242880,  ARRAY['image/jpeg','image/png','image/webp']),
+  ('activities', 'activities', true, 5242880,  ARRAY['image/jpeg','image/png','image/webp']),
+  ('teachers',   'teachers',   true, 5242880,  ARRAY['image/jpeg','image/png','image/webp']),
   ('documents',  'documents',  true, 20971520, NULL)
 ON CONFLICT (id) DO NOTHING;
 
-DROP POLICY IF EXISTS "storage: public read"  ON storage.objects;
-DROP POLICY IF EXISTS "storage: auth upload"  ON storage.objects;
-DROP POLICY IF EXISTS "storage: auth update"  ON storage.objects;
-DROP POLICY IF EXISTS "storage: auth delete"  ON storage.objects;
-CREATE POLICY "storage: public read"  ON storage.objects FOR SELECT  TO public        USING (true);
-CREATE POLICY "storage: auth upload"  ON storage.objects FOR INSERT  TO authenticated WITH CHECK (true);
-CREATE POLICY "storage: auth update"  ON storage.objects FOR UPDATE  TO authenticated USING (true);
-CREATE POLICY "storage: auth delete"  ON storage.objects FOR DELETE  TO authenticated USING (true);
+DROP POLICY IF EXISTS "storage: public read" ON storage.objects;
+DROP POLICY IF EXISTS "storage: auth upload" ON storage.objects;
+DROP POLICY IF EXISTS "storage: auth update" ON storage.objects;
+DROP POLICY IF EXISTS "storage: auth delete" ON storage.objects;
+CREATE POLICY "storage: public read" ON storage.objects FOR SELECT  TO public        USING (true);
+CREATE POLICY "storage: auth upload" ON storage.objects FOR INSERT  TO authenticated WITH CHECK (true);
+CREATE POLICY "storage: auth update" ON storage.objects FOR UPDATE  TO authenticated USING (true);
+CREATE POLICY "storage: auth delete" ON storage.objects FOR DELETE  TO authenticated USING (true);
 
 
 -- ============================================================
--- PART 6: สร้าง Admin (รันแยกหลังจากสมัครบัญชีแล้ว)
+-- PART 7: สร้าง Admin (รันแยกหลังจากสมัครบัญชีแล้ว)
 -- ============================================================
--- แก้ 'your-email@example.com' เป็น email ที่สมัครไว้
--- แล้ว highlight เฉพาะส่วนนี้แล้วกด Run
+-- 1. ไปที่ Authentication → Users → สมัครบัญชีผ่านหน้าเว็บก่อน
+-- 2. แก้ email ด้านล่างให้ตรงกับที่สมัคร
+-- 3. Highlight เฉพาะ 2 บรรทัด UPDATE แล้วกด Run
 
 /*
 UPDATE public.profiles
