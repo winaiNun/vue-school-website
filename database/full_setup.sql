@@ -138,6 +138,23 @@ CREATE TABLE IF NOT EXISTS public.school_config (
   banner_images         JSONB         DEFAULT '[]',
   show_public_bmi       BOOLEAN       DEFAULT false,
   register_code         TEXT          DEFAULT '1234',
+  -- การแสดงผลหน้าแรก
+  homepage_sections     JSONB         DEFAULT '[]',
+  homepage_widgets      JSONB         DEFAULT '{}',
+  -- topbar แถบประกาศบนสุด
+  topbar_enabled        BOOLEAN       DEFAULT true,
+  topbar_text           TEXT          DEFAULT '',
+  -- announcement banner เลื่อน
+  announcement_enabled  BOOLEAN       DEFAULT false,
+  announcement_text     TEXT          DEFAULT '',
+  announcement_type     TEXT          DEFAULT 'info',
+  announcement_link     TEXT          DEFAULT '',
+  announcement_speed    INTEGER       DEFAULT 18,
+  -- กลุ่มบริหาร
+  admin_departments     JSONB         DEFAULT '[]',
+  -- footer
+  footer_quick_links    JSONB         DEFAULT '[]',
+  footer_agencies       JSONB         DEFAULT '[]',
   updated_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
