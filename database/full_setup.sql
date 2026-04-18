@@ -832,6 +832,68 @@ AS $$
 $$;
 GRANT EXECUTE ON FUNCTION public.check_register_code(text) TO anon, authenticated;
 
+-- ─── get_sis_sessions (รายการ import sessions สาธารณะ) ───────
+CREATE OR REPLACE FUNCTION public.get_sis_sessions()
+RETURNS TABLE (
+  id               UUID,
+  academic_year    SMALLINT,
+  checkpoint       SMALLINT,
+  checkpoint_label TEXT,
+  total_rows       INTEGER,
+  imported_at      TIMESTAMPTZ
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT id, academic_year, checkpoint, checkpoint_label, total_rows, imported_at
+  FROM import_sessions
+  ORDER BY imported_at DESC;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_sis_sessions() TO anon, authenticated;
+
+-- ─── get_checkpoint_stats (สถิตินักเรียนตาม session) ─────────
+CREATE OR REPLACE FUNCTION public.get_checkpoint_stats(p_session_id UUID)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+DECLARE
+  v_by_level jsonb;
+  v_by_room  jsonb;
+BEGIN
+  SELECT jsonb_object_agg(grade_level, cnt)
+  INTO v_by_level
+  FROM (
+    SELECT grade_level, COUNT(*) AS cnt
+    FROM student_snapshots
+    WHERE import_session_id = p_session_id
+      AND grade_level IS NOT NULL AND grade_level <> ''
+    GROUP BY grade_level
+  ) t;
+
+  SELECT jsonb_object_agg(room_key, stats)
+  INTO v_by_room
+  FROM (
+    SELECT
+      grade_level || '/' || room::text AS room_key,
+      jsonb_build_object(
+        'total',  COUNT(*),
+        'male',   COUNT(*) FILTER (WHERE gender = 'ชาย'),
+        'female', COUNT(*) FILTER (WHERE gender = 'หญิง')
+      ) AS stats
+    FROM student_snapshots
+    WHERE import_session_id = p_session_id
+      AND grade_level IS NOT NULL AND grade_level <> ''
+      AND room IS NOT NULL
+    GROUP BY grade_level, room
+  ) t;
+
+  RETURN jsonb_build_object(
+    'byLevel', COALESCE(v_by_level, '{}'::jsonb),
+    'byRoom',  COALESCE(v_by_room,  '{}'::jsonb)
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_checkpoint_stats(UUID) TO anon, authenticated;
+
 -- ─── get_all_wpa_admin (admin ดู วPA ทุกคน) ──────────────────
 CREATE OR REPLACE FUNCTION public.get_all_wpa_admin()
 RETURNS TABLE (
