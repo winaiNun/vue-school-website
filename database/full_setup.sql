@@ -152,6 +152,11 @@ CREATE TABLE IF NOT EXISTS public.school_config (
   announcement_speed    INTEGER       DEFAULT 18,
   -- กลุ่มบริหาร
   admin_departments     JSONB         DEFAULT '[]',
+  -- ธีม / สีเมนู
+  theme                 TEXT          DEFAULT 'default',
+  nav_color             TEXT          DEFAULT '#1e3a8a',
+  -- ชื่อหน้า วPA
+  wpa_title             TEXT          DEFAULT 'ข้อตกลงและผลงาน (วPA)',
   -- footer
   footer_quick_links    JSONB         DEFAULT '[]',
   footer_agencies       JSONB         DEFAULT '[]',
