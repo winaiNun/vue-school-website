@@ -85,9 +85,10 @@ const props = defineProps({
   bgStyle:   { type: String, default: 'gray' },
   bgImage:   { type: String, default: '' },
   bgOverlay: { type: String, default: 'light' },
+  darkColor: { type: String, default: '#1e3a5f' },
 })
 
-const bgCss      = computed(() => getSectionBgStyle(props.bgStyle, props.stemColor, props.bgImage, props.bgOverlay))
+const bgCss      = computed(() => getSectionBgStyle(props.bgStyle, props.stemColor, props.bgImage, props.bgOverlay, props.darkColor))
 const titleColor = computed(() => getTitleColor(props.stemColor, props.bgStyle, props.bgOverlay))
 
 const FOLDER_COLORS = [

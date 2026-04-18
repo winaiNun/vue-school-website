@@ -620,29 +620,46 @@
           <h3 class="font-bold text-gray-900 mb-5 flex items-center gap-2">🎨 เลือกธีมสีเว็บไซต์</h3>
 
           <!-- Color Themes -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-            <button v-for="t in themes" :key="t.key" @click="form.theme = t.key"
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <button v-for="t in themes" :key="t.key"
+              @click="form.theme = t.key; form.nav_color = t.navColor"
               :class="['relative rounded-2xl overflow-hidden border-2 transition-all duration-200 text-left',
-                form.theme === t.key ? 'border-blue-500 shadow-lg scale-105' : 'border-gray-200 hover:border-gray-300']"
+                form.theme === t.key && form.nav_color === t.navColor ? 'border-blue-500 shadow-lg scale-105' : 'border-gray-200 hover:border-gray-300']"
             >
-              <!-- Preview bar -->
-              <div :class="['h-20', t.previewBg]"></div>
-              <div class="p-3 bg-white">
+              <div class="h-16" :style="navColorToStyle(t.navColor)"></div>
+              <div class="p-2.5 bg-white">
                 <p class="font-semibold text-sm text-gray-900">{{ t.label }}</p>
-                <p class="text-xs text-gray-500">{{ t.desc }}</p>
+                <p class="text-xs text-gray-400">{{ t.desc }}</p>
               </div>
-              <!-- Selected check -->
-              <div v-if="form.theme === t.key"
-                class="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow">
-                ✓
-              </div>
+              <div v-if="form.theme === t.key && form.nav_color === t.navColor"
+                class="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow">✓</div>
             </button>
+
+            <!-- Custom color card -->
+            <label :class="['relative rounded-2xl overflow-hidden border-2 transition-all duration-200 text-left cursor-pointer',
+                form.theme === 'custom' ? 'border-blue-500 shadow-lg scale-105' : 'border-dashed border-gray-300 hover:border-gray-400']">
+              <div class="h-16 flex items-center justify-center text-2xl relative overflow-hidden"
+                   :style="form.theme === 'custom' ? navColorToStyle(form.nav_color) : { background: 'linear-gradient(135deg,#e2e8f0,#cbd5e1)' }">
+                <span v-if="form.theme !== 'custom'" class="text-gray-400">🎨</span>
+                <span v-else class="text-white text-xs font-bold">{{ form.nav_color?.toUpperCase() }}</span>
+                <input type="color" :value="form.nav_color || '#1e3a8a'"
+                       @input="form.theme = 'custom'; form.nav_color = $event.target.value"
+                       class="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+              </div>
+              <div class="p-2.5 bg-white">
+                <p class="font-semibold text-sm text-gray-900">กำหนดเอง</p>
+                <p class="text-xs text-gray-400">เลือกสีจากวงล้อ</p>
+              </div>
+              <div v-if="form.theme === 'custom'"
+                class="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow">✓</div>
+            </label>
           </div>
 
           <!-- Preview live -->
           <div class="rounded-2xl overflow-hidden border border-gray-200 mb-8">
             <p class="text-xs text-gray-500 px-4 py-2 bg-gray-50 border-b">ตัวอย่าง Navbar (บันทึกแล้วจะเห็นผลทั้งเว็บ)</p>
-            <div :class="['h-14 flex items-center px-5 gap-3 text-white text-sm font-bold', themePreviewClass]">
+            <div class="h-14 flex items-center px-5 gap-3 text-white text-sm font-bold"
+                 :style="themePreviewStyle">
               <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs">ร</div>
               <span>{{ form.name_th || 'โรงเรียนของคุณ' }}</span>
               <div class="ml-auto flex gap-4 text-xs font-normal opacity-80">
@@ -876,7 +893,7 @@
                               ? 'border-blue-500 shadow-sm'
                               : 'border-gray-200 hover:border-gray-300'">
                       <div class="w-full h-8 rounded-lg mb-1.5 overflow-hidden border border-gray-100"
-                           :style="getPreviewBgStyle(bg.key, sec.stemColor)">
+                           :style="getPreviewBgStyle(bg.key, sec.stemColor, sec.darkColor)">
                         <div v-if="bg.key === 'plaid'" class="w-full h-full"
                              style="background-image:repeating-linear-gradient(45deg,rgba(100,116,139,.18) 0,rgba(100,116,139,.18) 1px,transparent 1px,transparent 7px),repeating-linear-gradient(-45deg,rgba(100,116,139,.18) 0,rgba(100,116,139,.18) 1px,transparent 1px,transparent 7px),repeating-linear-gradient(0deg,rgba(100,116,139,.12) 0,rgba(100,116,139,.12) 1px,transparent 1px,transparent 7px),repeating-linear-gradient(90deg,rgba(100,116,139,.12) 0,rgba(100,116,139,.12) 1px,transparent 1px,transparent 7px);background-color:#f9fafb"></div>
                         <div v-else-if="bg.key === 'image'" class="w-full h-full flex items-center justify-center text-gray-400 text-lg">🖼️</div>
@@ -886,6 +903,35 @@
                         {{ bg.label }}
                       </div>
                     </button>
+                  </div>
+
+                  <!-- Dark color picker (shows when bgStyle === 'dark') -->
+                  <div v-if="sec.bgStyle === 'dark'" class="mt-3">
+                    <label class="label text-xs">สีพื้นหลังเข้ม</label>
+                    <div class="flex flex-wrap gap-2 mb-2">
+                      <button v-for="dc in DARK_PRESETS" :key="dc.color"
+                              @click="sec.darkColor = dc.color"
+                              class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border-2 text-xs font-medium transition-all"
+                              :class="sec.darkColor === dc.color ? 'border-white/60 shadow-sm' : 'border-transparent hover:border-white/30'"
+                              :style="{ background: dc.color, color: '#fff' }">
+                        {{ dc.label }}
+                      </button>
+                      <!-- custom color wheel -->
+                      <label class="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border-2 cursor-pointer text-xs font-medium transition-all hover:border-gray-300"
+                             :class="isDarkCustomColor(sec) ? 'border-gray-500 shadow-sm' : 'border-dashed border-gray-300'"
+                             :style="isDarkCustomColor(sec) ? { background: sec.darkColor, color: '#fff' } : {}">
+                        <span v-if="isDarkCustomColor(sec)" class="w-3.5 h-3.5 rounded-full border border-white/50 shrink-0" :style="{ background: sec.darkColor }"></span>
+                        <span v-else class="text-base leading-none">🎨</span>
+                        <span>{{ isDarkCustomColor(sec) ? sec.darkColor.toUpperCase() : 'กำหนดเอง' }}</span>
+                        <input type="color" :value="sec.darkColor || '#1e3a5f'"
+                               @input="sec.darkColor = $event.target.value"
+                               class="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                      </label>
+                    </div>
+                    <!-- live preview -->
+                    <div class="w-full h-10 rounded-xl overflow-hidden border border-gray-200"
+                         :style="getSectionBgStyle('dark', sec.stemColor, '', 'light', sec.darkColor)">
+                    </div>
                   </div>
 
                   <!-- Image upload panel (shows when bgStyle === 'image') -->
@@ -1501,6 +1547,20 @@ function isCustomColor(sec) {
   return !COLOR_PRESETS.some(c => c.stem === sec.stemColor)
 }
 
+const DARK_PRESETS = [
+  { label: 'กรมท่า',    color: '#1e3a5f' },
+  { label: 'น้ำเงิน',   color: '#1e3269' },
+  { label: 'ม่วงเข้ม',  color: '#312e81' },
+  { label: 'เขียวเข้ม', color: '#14532d' },
+  { label: 'แดงเข้ม',   color: '#7f1d1d' },
+  { label: 'เทาเข้ม',   color: '#1e293b' },
+  { label: 'ดำ',        color: '#0f172a' },
+]
+
+function isDarkCustomColor(sec) {
+  return !DARK_PRESETS.some(d => d.color === (sec.darkColor || '#1e3a5f'))
+}
+
 const BG_STYLES = [
   { key: 'white',  label: 'ขาว'   },
   { key: 'gray',   label: 'เทา'   },
@@ -1511,9 +1571,9 @@ const BG_STYLES = [
   { key: 'image',  label: 'ภาพ'   },
 ]
 
-function getPreviewBgStyle(bgKey, stemColor) {
+function getPreviewBgStyle(bgKey, stemColor, darkColor = '#1e3a5f') {
   if (bgKey === 'image') return { background: 'linear-gradient(135deg,#e2e8f0,#cbd5e1)' }
-  return getSectionBgStyle(bgKey, stemColor)
+  return getSectionBgStyle(bgKey, stemColor, '', 'light', darkColor)
 }
 
 async function deleteBgImage(sec) {
@@ -1533,10 +1593,10 @@ async function deleteBgImage(sec) {
 }
 
 const DEFAULT_SECTIONS = [
-  { id: 'news',     order: 1, visible: true, title: 'ข่าวประชาสัมพันธ์',  subtitle: 'ข่าวสารและประกาศจากโรงเรียน',                      icon: '📰', variant: 'circuit', stemColor: '#3b82f6', leafColor: '#93c5fd', bgStyle: 'white',  bgImage: '', bgOverlay: 'light' },
-  { id: 'systems',  order: 2, visible: true, title: 'ระบบงานโรงเรียน',    subtitle: 'เข้าถึงระบบงานต่างๆ ของโรงเรียน',                  icon: '🏫', variant: 'chevron', stemColor: '#fbbf24', leafColor: '#fde68a', bgStyle: 'dark',   bgImage: '', bgOverlay: 'light' },
-  { id: 'activity', order: 3, visible: true, title: 'ภาพกิจกรรม',          subtitle: 'บรรยากาศกิจกรรมและความทรงจำของโรงเรียน',           icon: '🖼️', variant: 'diamond', stemColor: '#f97316', leafColor: '#fdba74', bgStyle: 'gray',   bgImage: '', bgOverlay: 'light' },
-  { id: 'media',    order: 4, visible: true, title: 'คลังสื่อการเรียนรู้', subtitle: 'วิดีโอ สื่อนำเสนอ เอกสาร และแหล่งเรียนรู้ออนไลน์', icon: '📚', variant: 'wave',    stemColor: '#6366f1', leafColor: '#a5b4fc', bgStyle: 'white',  bgImage: '', bgOverlay: 'light' },
+  { id: 'news',     order: 1, visible: true, title: 'ข่าวประชาสัมพันธ์',  subtitle: 'ข่าวสารและประกาศจากโรงเรียน',                      icon: '📰', variant: 'circuit', stemColor: '#3b82f6', leafColor: '#93c5fd', bgStyle: 'white',  bgImage: '', bgOverlay: 'light', darkColor: '#1e3a5f' },
+  { id: 'systems',  order: 2, visible: true, title: 'ระบบงานโรงเรียน',    subtitle: 'เข้าถึงระบบงานต่างๆ ของโรงเรียน',                  icon: '🏫', variant: 'chevron', stemColor: '#fbbf24', leafColor: '#fde68a', bgStyle: 'dark',   bgImage: '', bgOverlay: 'light', darkColor: '#1e3a5f' },
+  { id: 'activity', order: 3, visible: true, title: 'ภาพกิจกรรม',          subtitle: 'บรรยากาศกิจกรรมและความทรงจำของโรงเรียน',           icon: '🖼️', variant: 'diamond', stemColor: '#f97316', leafColor: '#fdba74', bgStyle: 'gray',   bgImage: '', bgOverlay: 'light', darkColor: '#1e3a5f' },
+  { id: 'media',    order: 4, visible: true, title: 'คลังสื่อการเรียนรู้', subtitle: 'วิดีโอ สื่อนำเสนอ เอกสาร และแหล่งเรียนรู้ออนไลน์', icon: '📚', variant: 'wave',    stemColor: '#6366f1', leafColor: '#a5b4fc', bgStyle: 'white',  bgImage: '', bgOverlay: 'light', darkColor: '#1e3a5f' },
 ]
 
 const tabs = [
@@ -1596,20 +1656,32 @@ const DEFAULT_AGENCIES = [
 ]
 
 const themes = [
-  { key: 'blue',   label: 'น้ำเงินราชการ',   desc: 'Classic · รัฐ/ราชการ',    previewBg: 'bg-gradient-to-br from-blue-900 to-blue-700' },
-  { key: 'green',  label: 'เขียวมรกต',       desc: 'Nature · วิชาการ',        previewBg: 'bg-gradient-to-br from-emerald-900 to-emerald-700' },
-  { key: 'red',    label: 'แดงทับทิม',       desc: 'Bold · ประเพณีไทย',      previewBg: 'bg-gradient-to-br from-rose-900 to-rose-700' },
-  { key: 'pastel', label: 'ม่วงพาสเทล',      desc: 'Soft · หรูหรา นุ่มนวล',  previewBg: 'bg-gradient-to-br from-violet-900 to-violet-600' },
+  { key: 'blue',    label: 'น้ำเงินราชการ',  desc: 'Classic · รัฐ/ราชการ',   navColor: '#1e3a8a' },
+  { key: 'green',   label: 'เขียวมรกต',      desc: 'Nature · วิชาการ',       navColor: '#064e3b' },
+  { key: 'red',     label: 'แดงทับทิม',      desc: 'Bold · ประเพณีไทย',     navColor: '#881337' },
+  { key: 'pastel',  label: 'ม่วงพาสเทล',     desc: 'Soft · หรูหรา',         navColor: '#4c1d95' },
+  { key: 'teal',    label: 'เขียวทะเล',      desc: 'Fresh · ทันสมัย',        navColor: '#134e4a' },
+  { key: 'amber',   label: 'ทองเหลือง',      desc: 'Warm · อบอุ่น',         navColor: '#78350f' },
+  { key: 'slate',   label: 'เทาเข้ม',        desc: 'Neutral · เรียบหรู',     navColor: '#0f172a' },
+  { key: 'maroon',  label: 'แดงเลือดหมู',    desc: 'Strong · ทรงพลัง',      navColor: '#4a0404' },
 ]
 
-const themePreviewClass = computed(() => {
-  const map = {
-    blue:   'bg-gradient-to-r from-blue-900 to-blue-700',
-    green:  'bg-gradient-to-r from-emerald-900 to-emerald-700',
-    red:    'bg-gradient-to-r from-rose-900 to-rose-700',
-    pastel: 'bg-gradient-to-r from-violet-900 to-violet-600',
-  }
-  return map[form.value.theme] || map.blue
+// คำนวณ gradient style จาก navColor hex
+function navColorToStyle(hex) {
+  const h = (hex || '#1e3a8a').replace('#', '')
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  const toHex = (v) => Math.min(255, Math.max(0, Math.round(v))).toString(16).padStart(2, '0')
+  const darker  = `#${toHex(r * .70)}${toHex(g * .70)}${toHex(b * .78)}`
+  const lighter = `#${toHex(r * 1.15)}${toHex(g * 1.12)}${toHex(b * 1.20)}`
+  return { background: `linear-gradient(135deg, ${darker} 0%, ${hex} 60%, ${lighter} 100%)` }
+}
+
+const themePreviewStyle = computed(() => {
+  const t = themes.find(t => t.key === form.value.theme)
+  const color = form.value.nav_color || t?.navColor || '#1e3a8a'
+  return navColorToStyle(color)
 })
 
 const todayStr = new Date().toISOString().split('T')[0]
@@ -1730,10 +1802,18 @@ const DEFAULT_WIDGETS = {
 function loadConfig() {
   if (!config.value) return
   form.value = { ...config.value }
+  // nav_color: ถ้าไม่มีในฐานข้อมูล → ดึงจาก theme preset เป็น fallback
+  if (!form.value.nav_color) {
+    const preset = themes.find(t => t.key === form.value.theme)
+    form.value.nav_color = preset?.navColor || '#1e3a8a'
+  }
   banners.value = Array.isArray(config.value.banner_images) ? config.value.banner_images.map(b => ({ ...b })) : []
   deputies.value = Array.isArray(config.value.deputy_directors) ? config.value.deputy_directors.map(d => ({ ...d })) : []
   form.value.homepage_sections = Array.isArray(config.value.homepage_sections) && config.value.homepage_sections.length
-    ? config.value.homepage_sections.map(s => ({ ...s }))
+    ? config.value.homepage_sections.map(s => ({
+        darkColor: '#1e3a5f', // fallback สำหรับ record เก่าที่ยังไม่มี darkColor
+        ...s,
+      }))
     : DEFAULT_SECTIONS.map(s => ({ ...s }))
   const w = config.value.homepage_widgets || {}
   form.value.homepage_widgets = {

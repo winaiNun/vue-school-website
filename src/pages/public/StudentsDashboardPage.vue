@@ -187,7 +187,7 @@
         </div>
 
         <!-- ══ BMI Health Section ══════════════════════════════════════════════════ -->
-        <div class="mt-8">
+        <div v-if="showPublicBMI" class="mt-8">
           <div class="flex items-center gap-3 mb-5">
             <span class="w-1.5 h-6 bg-green-500 rounded-full inline-block"></span>
             <h2 class="font-bold text-gray-900 text-lg">🏥 สุขภาพนักเรียน (BMI)</h2>
@@ -208,12 +208,16 @@
           </div>
 
           <template v-else>
-            <!-- Summary row -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-              <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-center">
-                <div class="text-3xl font-black text-blue-700">{{ bmiAvg !== null ? bmiAvg.toFixed(1) : '-' }}</div>
-                <div class="text-xs text-gray-400 mt-1">BMI เฉลี่ย</div>
+            <!-- BMI เฉลี่ย — แถวบน เต็มความกว้าง -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center mb-3">
+              <div class="text-5xl font-black text-blue-700 tracking-tight">
+                {{ bmiAvg !== null ? bmiAvg.toFixed(1) : '-' }}
               </div>
+              <div class="text-sm text-gray-400 mt-1 font-medium">BMI เฉลี่ย · {{ bmiStats.length.toLocaleString() }} คน มีข้อมูล</div>
+            </div>
+
+            <!-- ผอม / สมส่วน / น้ำหนักเกิน / อ้วน — แถวล่าง 4 คอลัมน์ -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
               <div v-for="cat in BMI_CATS_PUB" :key="cat.key"
                 :class="['rounded-2xl shadow-sm border p-4 text-center', cat.light, cat.border]">
                 <div :class="['text-3xl font-black', cat.text]">
@@ -318,7 +322,8 @@ import PublicLayout from '../../layouts/PublicLayout.vue'
 import { useSchoolConfig } from '../../composables/useSchoolConfig'
 import { supabase } from '../../lib/supabase'
 
-const { config } = useSchoolConfig()
+const { config, fetchConfig } = useSchoolConfig()
+const showPublicBMI = ref(false)
 const loading         = ref(true)
 const sessions        = ref([])
 const stats           = ref(null)
@@ -521,63 +526,29 @@ const bmiByGrade = computed(() => {
 async function loadPublicBMI() {
   bmiLoading.value = true
   try {
-    // หา import ล่าสุด
-    const { data: imp } = await supabase
-      .from('dmc_imports')
-      .select('id')
-      .order('imported_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (!imp) { bmiRawData.value = []; return }
-
-    // ดึง active students (เพื่อ cross-reference)
-    const activeSet = new Set()
-    const gradeMap  = {}
+    // ใช้ RPC ที่รัน SECURITY DEFINER พร้อม paginate (PostgREST limit 1000/request)
+    const all = []
     let from = 0
     while (true) {
-      const { data } = await supabase
-        .from('students')
-        .select('student_code, grade_level')
-        .eq('is_active', true)
-        .range(from, from + 999)
-      if (!data?.length) break
-      data.forEach(s => { activeSet.add(s.student_code); gradeMap[s.student_code] = s.grade_level })
-      if (data.length < 1000) break
-      from += 1000
-    }
-
-    // ดึง snapshots ของ import ล่าสุดด้วย .range() (ไม่ใช้ .in())
-    let snaps = []
-    from = 0
-    while (true) {
       const { data, error } = await supabase
-        .from('student_snapshots')
-        .select('student_code, weight, height, grade_level')
-        .eq('import_id', imp.id)
+        .rpc('get_public_bmi_stats')
         .range(from, from + 999)
-      if (error) break
+      if (error) { console.error(error); break }
       if (!data?.length) break
-      snaps = snaps.concat(data)
+      all.push(...data)
       if (data.length < 1000) break
       from += 1000
     }
-
-    // กรองเฉพาะ active + มีข้อมูลที่ถูกต้อง
-    bmiRawData.value = snaps
-      .filter(s => {
-        const w = parseFloat(s.weight), h = parseFloat(s.height)
-        return activeSet.has(s.student_code) && w > 0 && h > 50
-      })
-      .map(s => ({
-        grade_level: gradeMap[s.student_code] || s.grade_level,
-        weight: s.weight,
-        height: s.height,
-      }))
+    bmiRawData.value = all
   } catch (e) { console.error(e) }
   finally { bmiLoading.value = false }
 }
 
 onMounted(async () => {
+  // โหลด config ก่อนเพื่อเช็คว่าเปิดแสดง BMI สาธารณะหรือไม่
+  await fetchConfig()
+  showPublicBMI.value = config.value?.show_public_bmi ?? false
+
   const { data: sess } = await supabase.rpc('get_sis_sessions')
   sessions.value = Array.isArray(sess) ? sess : (sess || [])
   if (sessions.value.length) {
@@ -585,6 +556,8 @@ onMounted(async () => {
   } else {
     loading.value = false
   }
-  loadPublicBMI()   // โหลด BMI แบบ background ไม่ต้องรอ
+
+  // โหลด BMI เฉพาะเมื่อ admin เปิดใช้งาน
+  if (showPublicBMI.value) loadPublicBMI()
 })
 </script>

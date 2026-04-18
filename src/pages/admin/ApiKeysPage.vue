@@ -253,23 +253,46 @@
           @click.self="urlView = null">
           <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 space-y-4">
             <h3 class="font-bold text-gray-900">🔗 {{ urlView.name }}</h3>
-            <div>
-              <label class="text-xs font-semibold text-gray-500 mb-1 block">ENDPOINT URL</label>
-              <div class="flex gap-2">
-                <code class="flex-1 bg-gray-50 border border-gray-200 text-gray-700 px-3 py-2.5 rounded-xl text-xs break-all">{{ urlView.url }}</code>
-                <button @click="copy(urlView.url)"
-                  class="px-3 py-2 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 shrink-0">
-                  {{ copied === 'url-view' ? '✅' : '📋' }}
-                </button>
+
+            <!-- คำเตือนหลัก: key ถูกซ่อน ใช้ URL นี้ไม่ได้ -->
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3">
+              <span class="text-2xl shrink-0">🔒</span>
+              <div>
+                <p class="text-sm font-semibold text-red-700">API Key ถูกซ่อนแล้ว — ดึงคืนไม่ได้</p>
+                <p class="text-xs text-red-500 mt-1">
+                  ระบบไม่เก็บ key จริงไว้เพื่อความปลอดภัย<br/>
+                  หากทำ URL หาย ต้อง<strong>ลบ key นี้แล้วสร้างใหม่</strong>
+                </p>
               </div>
             </div>
-            <div class="text-xs text-gray-500 bg-amber-50 border border-amber-100 rounded-xl p-3">
-              ⚠️ API Key ถูกซ่อนแล้ว — หากทำหายต้องสร้าง key ใหม่
+
+            <!-- Endpoint base (ไม่มี key) -->
+            <div>
+              <label class="text-xs font-semibold text-gray-500 mb-1 block">BASE ENDPOINT</label>
+              <div class="flex gap-2">
+                <code class="flex-1 bg-gray-50 border border-gray-200 text-gray-500 px-3 py-2.5 rounded-xl text-xs break-all">
+                  {{ RPC_URL }}?p_api_key=<span class="text-red-400 font-bold">YOUR_KEY</span>&amp;apikey=...
+                </code>
+              </div>
+              <p class="text-[11px] text-gray-400 mt-1">⚠️ URL นี้คัดลอกไปใช้งานไม่ได้ — ต้องมี API Key จริง</p>
             </div>
-            <div class="text-xs text-gray-500 bg-gray-50 rounded-xl p-3">
+
+            <!-- Info -->
+            <div class="text-xs text-gray-600 bg-gray-50 rounded-xl p-3 space-y-1">
+              <p><strong>Resource:</strong> {{ RESOURCES.find(r => r.key === urlView.resource)?.label || urlView.resource }}</p>
               <p><strong>Fields:</strong> {{ urlView.fields.join(', ') }}</p>
             </div>
-            <button @click="urlView = null" class="w-full py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">ปิด</button>
+
+            <div class="flex gap-3">
+              <button @click="deleteFromUrl()"
+                class="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm hover:bg-red-100 transition-colors">
+                🗑️ ลบแล้วสร้างใหม่
+              </button>
+              <button @click="urlView = null"
+                class="flex-1 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+                ปิด
+              </button>
+            </div>
           </div>
         </div>
       </Transition>
@@ -464,10 +487,17 @@ async function toggleActive(k) {
 
 function showUrl(k) {
   urlView.value = {
-    name:   k.name,
-    url:    `${RPC_URL}?p_api_key=<KEY_HIDDEN>&apikey=${SUPABASE_ANON}`,  // ซ่อน key จริง
-    fields: k.fields,
+    name:     k.name,
+    resource: k.resource,
+    fields:   k.fields,
+    _key:     k,   // เก็บ ref เผื่อกด "ลบแล้วสร้างใหม่"
   }
+}
+
+function deleteFromUrl() {
+  const k = urlView.value._key
+  urlView.value = null
+  confirmDelete(k)
 }
 
 function confirmDelete(k) {

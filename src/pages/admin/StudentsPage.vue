@@ -453,19 +453,82 @@
         </div>
         <template v-else>
 
-          <!-- Trend bar chart -->
+          <!-- Grouped Bar Chart: ชาย / หญิง / รวม -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
-            <div class="font-semibold text-gray-700 mb-4 text-sm">แนวโน้มจำนวนนักเรียน</div>
-            <div class="flex items-end gap-3 overflow-x-auto pb-2" style="min-height:130px">
-              <div v-for="imp in chronologicalImports" :key="imp.id"
-                class="flex flex-col items-center gap-1 flex-1 min-w-[60px]">
-                <span class="text-xs font-bold text-blue-700">{{ imp.total_count.toLocaleString() }}</span>
-                <div class="w-full bg-blue-400 rounded-t"
-                  :style="{height:`${Math.max(8, Math.round(imp.total_count / maxCount * 100))}px`}"></div>
-                <span class="text-xs text-gray-500 text-center leading-tight">
-                  {{ imp.label.replace('ภาคเรียนที่','เทอม').replace('ภาคเรียน','เทอม') }}
-                </span>
+            <div class="flex items-center justify-between mb-4">
+              <div class="font-semibold text-gray-700 text-sm">📊 สถิติจำนวนนักเรียนแยกเพศ</div>
+              <div class="flex items-center gap-4 text-xs text-gray-500">
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded inline-block bg-blue-400"></span>ชาย</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded inline-block bg-pink-400"></span>หญิง</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded inline-block bg-violet-400"></span>รวม</span>
               </div>
+            </div>
+            <div class="w-full overflow-x-auto" @mouseleave="hoveredBar=null">
+              <svg :viewBox="`0 0 ${BAR.W} ${BAR.H}`" class="w-full" style="min-width:320px;overflow:visible">
+                <defs>
+                  <linearGradient id="bgMale"   x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#3b82f6"/>
+                  </linearGradient>
+                  <linearGradient id="bgFemale" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#f9a8d4"/><stop offset="100%" stop-color="#ec4899"/>
+                  </linearGradient>
+                  <linearGradient id="bgTotal"  x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#8b5cf6"/>
+                  </linearGradient>
+                </defs>
+
+                <!-- Y-axis grid + labels -->
+                <g v-for="(tick,i) in barYTicks" :key="'bt'+i">
+                  <line :x1="BAR.PL" :y1="tick.y" :x2="BAR.W-BAR.PR" :y2="tick.y"
+                    :stroke="tick.v===0?'#cbd5e1':'#f1f5f9'" :stroke-width="tick.v===0?1.5:1"/>
+                  <text :x="BAR.PL-6" :y="+tick.y+4" text-anchor="end" font-size="10" fill="#94a3b8">
+                    {{ tick.label }}
+                  </text>
+                </g>
+
+                <!-- Grouped bars -->
+                <g v-for="(grp,gi) in barGroups" :key="'grp'+gi">
+                  <!-- stripe bg per group for readability -->
+                  <rect v-if="gi%2===1"
+                    :x="BAR.PL + gi*grp.groupW" :y="BAR.PT"
+                    :width="grp.groupW" :height="BAR.H-BAR.PT-BAR.PB"
+                    fill="#f8fafc"/>
+
+                  <g v-for="bar in grp.bars" :key="bar.type"
+                     @mouseenter="hoveredBar={label:grp.d.label, type:bar.label, value:bar.value, x:bar.cx, y:bar.y}"
+                     @mouseleave="hoveredBar=null"
+                     style="cursor:pointer">
+                    <!-- Bar rect -->
+                    <rect :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" :fill="`url(#bg${bar.type})`"
+                      rx="3" :opacity="hoveredBar && hoveredBar.type===bar.label && Math.abs(hoveredBar.x-bar.cx)<1 ? 1 : 0.82"/>
+                    <!-- Value inside bar (if tall enough) -->
+                    <text v-if="bar.h > 16" :x="bar.cx" :y="bar.y+bar.h-5"
+                      text-anchor="middle" font-size="9" fill="white" font-weight="600" opacity="0.95">
+                      {{ bar.value >= 1000 ? `${(bar.value/1000).toFixed(1)}k` : bar.value }}
+                    </text>
+                  </g>
+
+                  <!-- X-axis label -->
+                  <text :x="grp.centerX" :y="BAR.H-BAR.PB+18" text-anchor="middle" font-size="10" fill="#475569">
+                    {{ shortLabel(grp.d.label) }}
+                  </text>
+                </g>
+
+                <!-- Axes -->
+                <line :x1="BAR.PL" :y1="BAR.PT" :x2="BAR.PL" :y2="BAR.H-BAR.PB" stroke="#e2e8f0" stroke-width="1.5"/>
+                <line :x1="BAR.PL" :y1="BAR.H-BAR.PB" :x2="BAR.W-BAR.PR" :y2="BAR.H-BAR.PB" stroke="#e2e8f0" stroke-width="1.5"/>
+
+                <!-- Tooltip -->
+                <g v-if="hoveredBar" :transform="`translate(${Math.min(hoveredBar.x, BAR.W-80)},${Math.max(hoveredBar.y-10, BAR.PT+10)})`">
+                  <rect x="-40" y="-48" width="80" height="44" rx="7" fill="#1e293b" opacity="0.93"/>
+                  <text x="0" y="-32" text-anchor="middle" font-size="9" fill="#94a3b8">{{ hoveredBar.label }}</text>
+                  <text x="0" y="-20" text-anchor="middle" font-size="9" fill="#cbd5e1">{{ hoveredBar.type }}</text>
+                  <text x="0" y="-6"  text-anchor="middle" font-size="14" font-weight="700" fill="white">
+                    {{ hoveredBar.value.toLocaleString() }}
+                  </text>
+                  <polygon points="-6,-4 6,-4 0,4" fill="#1e293b" opacity="0.93"/>
+                </g>
+              </svg>
             </div>
           </div>
 
@@ -484,6 +547,7 @@
                     <th class="px-4 py-3 text-center">หญิง</th>
                     <th class="px-4 py-3 text-center">เปลี่ยนแปลง</th>
                     <th class="px-4 py-3 text-center">วันที่นำเข้า</th>
+                    <th class="px-4 py-3 text-center w-24">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -506,9 +570,73 @@
                       <span v-else class="text-xs text-gray-300">–</span>
                     </td>
                     <td class="px-4 py-3 text-center text-xs text-gray-400">{{ formatDate(imp.imported_at) }}</td>
+                    <td class="px-4 py-3 text-center" @click.stop>
+                      <button @click="confirmEditImport(imp)"
+                        class="text-blue-400 hover:text-blue-600 hover:bg-blue-50 p-1.5 rounded transition"
+                        title="เปลี่ยนชื่อรอบการนำเข้า">✏️</button>
+                      <button @click="confirmDeleteImport(imp)"
+                        class="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition ml-1"
+                        title="ลบประวัติการนำเข้านี้">🗑️</button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- Line Trend Chart (ใต้ตาราง) -->
+          <div v-if="chronologicalImports.length > 1" class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mt-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="font-semibold text-gray-700 text-sm">📈 แนวโน้มรวมทุกรอบ</div>
+              <div class="text-xs text-gray-400">{{ chronologicalImports.length }} รอบ · เมาส์ชี้ดูตัวเลข</div>
+            </div>
+            <div class="w-full overflow-x-auto">
+              <svg :viewBox="`0 0 ${CHART.W} ${CHART.H}`" class="w-full" style="min-width:320px;overflow:visible">
+                <defs>
+                  <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.22"/>
+                    <stop offset="100%" stop-color="#6366f1" stop-opacity="0.01"/>
+                  </linearGradient>
+                </defs>
+                <!-- Grid -->
+                <g v-for="(tick,i) in chartYTicks" :key="'ct'+i">
+                  <line :x1="CHART.PL" :y1="tick.y" :x2="CHART.W-CHART.PR" :y2="tick.y"
+                    stroke="#f1f5f9" stroke-width="1"/>
+                  <text :x="CHART.PL-6" :y="+tick.y+4" text-anchor="end" font-size="10" fill="#94a3b8">
+                    {{ tick.label }}
+                  </text>
+                </g>
+                <!-- Area + Line -->
+                <path v-if="chartAreaPath" :d="chartAreaPath" fill="url(#trendGrad)"/>
+                <path v-if="chartLinePath" :d="chartLinePath" fill="none" stroke="#6366f1"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Points -->
+                <g v-for="(pt,pi) in chartPoints" :key="'cp'+pi"
+                   @mouseenter="hoveredChartPt=pi" @mouseleave="hoveredChartPt=null"
+                   style="cursor:pointer">
+                  <circle :cx="pt.x" :cy="pt.y" r="16" fill="transparent"/>
+                  <circle :cx="pt.x" :cy="pt.y" :r="hoveredChartPt===pi?6:4"
+                    fill="white" stroke="#6366f1" :stroke-width="hoveredChartPt===pi?3:2"/>
+                  <!-- Tooltip on hover -->
+                  <g v-if="hoveredChartPt===pi">
+                    <rect :x="pt.x-44" :y="pt.y-52" width="88" height="36" rx="6" fill="#1e293b" opacity="0.93"/>
+                    <text :x="pt.x" :y="pt.y-36" text-anchor="middle" font-size="9" fill="#94a3b8">
+                      {{ shortLabel(pt.d.label) }}
+                    </text>
+                    <text :x="pt.x" :y="pt.y-22" text-anchor="middle" font-size="14" font-weight="700" fill="white">
+                      {{ pt.d.total_count.toLocaleString() }}
+                    </text>
+                    <polygon :points="`${pt.x-5},${pt.y-16} ${pt.x+5},${pt.y-16} ${pt.x},${pt.y-10}`" fill="#1e293b" opacity="0.93"/>
+                  </g>
+                  <!-- X label -->
+                  <text :x="pt.x" :y="CHART.H-CHART.PB+16" text-anchor="middle" font-size="10" fill="#64748b">
+                    {{ shortLabel(pt.d.label) }}
+                  </text>
+                </g>
+                <!-- Axes -->
+                <line :x1="CHART.PL" :y1="CHART.PT" :x2="CHART.PL" :y2="CHART.H-CHART.PB" stroke="#e2e8f0" stroke-width="1.5"/>
+                <line :x1="CHART.PL" :y1="CHART.H-CHART.PB" :x2="CHART.W-CHART.PR" :y2="CHART.H-CHART.PB" stroke="#e2e8f0" stroke-width="1.5"/>
+              </svg>
             </div>
           </div>
         </template>
@@ -518,6 +646,41 @@
       <!-- TAB 4: สุขภาพ BMI                       -->
       <!-- ═══════════════════════════════════════ -->
       <template v-if="activeTab === 'health'">
+
+        <!-- ══ การแสดงผลสาธารณะ ══ -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
+          <div class="flex items-center justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🌐</span>
+              <div>
+                <div class="font-semibold text-gray-800 text-sm">แสดงข้อมูล BMI ในหน้าสาธารณะ</div>
+                <div class="text-xs text-gray-400 mt-0.5">เปิดใช้เพื่อให้ผู้เยี่ยมชมเห็นข้อมูลสุขภาพ BMI ของนักเรียน · ข้อมูลนี้มีความอ่อนไหวส่วนตัว</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <!-- Toggle switch -->
+              <button
+                @click="showPublicBMI = !showPublicBMI"
+                :class="['relative inline-flex h-7 w-13 items-center rounded-full transition-colors duration-200 focus:outline-none',
+                  showPublicBMI ? 'bg-green-500' : 'bg-gray-300']"
+                style="width:3.25rem">
+                <span :class="['inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200',
+                  showPublicBMI ? 'translate-x-7' : 'translate-x-1']"></span>
+              </button>
+              <span :class="['text-sm font-medium', showPublicBMI ? 'text-green-600' : 'text-gray-400']">
+                {{ showPublicBMI ? 'เปิดแสดง' : 'ซ่อน' }}
+              </span>
+              <button
+                @click="savePublicBMIToggle"
+                :disabled="savingBMIToggle"
+                class="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition">
+                {{ savingBMIToggle ? 'กำลังบันทึก...' : 'บันทึก' }}
+              </button>
+              <span v-if="bmiToggleSaved" class="text-xs text-green-600 font-medium">✓ บันทึกแล้ว</span>
+            </div>
+          </div>
+        </div>
+
         <div v-if="loadingBMI" class="text-center py-16 text-gray-400 animate-pulse">กำลังโหลด...</div>
         <div v-else-if="bmiData.length === 0" class="text-center py-20">
           <div class="text-5xl mb-4">⚖️</div>
@@ -557,9 +720,9 @@
             ⚠️ มีนักเรียน <strong>{{ noWeightCount.toLocaleString() }}</strong> คน ที่ไม่มีข้อมูลน้ำหนัก/ส่วนสูง — ไม่นับในการคำนวณ BMI
           </div>
 
-          <!-- Summary Cards -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-5">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center sm:col-span-1">
+          <!-- Summary Cards แถว 1: สถิติทั่วไป 4 คอลัมน์ -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 text-center">
               <div class="text-xl font-bold text-gray-700">{{ bmiStats.length.toLocaleString() }}</div>
               <div class="text-xs text-gray-400 mt-0.5">มีข้อมูล BMI</div>
             </div>
@@ -575,6 +738,10 @@
               <div class="text-xl font-bold text-teal-600">{{ avgHeight !== null ? avgHeight.toFixed(1) : '-' }}</div>
               <div class="text-xs text-gray-400 mt-0.5">ส่วนสูงเฉลี่ย ซม.</div>
             </div>
+          </div>
+
+          <!-- Summary Cards แถว 2: ภาวะโภชนาการ 4 คอลัมน์ -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <div v-for="cat in BMI_CATS" :key="cat.key"
               :class="['rounded-xl shadow-sm border p-4 text-center', cat.light, cat.border]">
               <div :class="['text-xl font-bold', cat.text]">{{ (bmiCounts[cat.key]||0).toLocaleString() }}</div>
@@ -927,6 +1094,60 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Import Label Modal -->
+    <div v-if="editImportTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      @click.self="editImportTarget=null">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <h3 class="font-bold text-gray-800 mb-1">✏️ เปลี่ยนชื่อรอบการนำเข้า</h3>
+        <p class="text-xs text-gray-400 mb-4">
+          ปีการศึกษา {{ editImportTarget.academic_year }} ภาคเรียนที่ {{ editImportTarget.semester }}
+        </p>
+        <label class="text-xs font-medium text-gray-600 block mb-1">ชื่อรอบการนำเข้า</label>
+        <input v-model="editImportLabel" type="text"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4"
+          @keyup.enter="saveImportLabel" @keyup.escape="editImportTarget=null"
+          placeholder="เช่น ภาคเรียนที่ 1/2567" autofocus/>
+        <div v-if="editImportError" class="text-xs text-red-500 mb-3">{{ editImportError }}</div>
+        <div class="flex gap-3 justify-end">
+          <button @click="editImportTarget=null" class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">ยกเลิก</button>
+          <button @click="saveImportLabel" :disabled="savingImportLabel || !editImportLabel.trim()"
+            class="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 flex items-center gap-2">
+            <span v-if="savingImportLabel" class="animate-spin">⏳</span>
+            บันทึก
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Import Confirm Modal -->
+    <div v-if="deleteImportTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      @click.self="deleteImportTarget=null">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div class="text-4xl mb-3">🗑️</div>
+        <h3 class="font-bold text-gray-800 mb-2">ลบประวัติการนำเข้า?</h3>
+        <p class="text-sm font-medium text-gray-700 mb-1">{{ deleteImportTarget.label }}</p>
+        <p class="text-xs text-gray-400 mb-5">
+          ปีการศึกษา {{ deleteImportTarget.academic_year }} ภาคเรียนที่ {{ deleteImportTarget.semester }} ·
+          {{ deleteImportTarget.total_count.toLocaleString() }} รายการ
+        </p>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-5 text-xs text-red-700 text-left">
+          ⚠️ ข้อมูล Snapshot <strong>{{ deleteImportTarget.total_count.toLocaleString() }}</strong> รายการของรอบนี้จะถูกลบถาวร
+          (ข้อมูลนักเรียนปัจจุบันไม่ได้รับผลกระทบ)
+        </div>
+        <div v-if="deleteImportError" class="bg-red-50 border border-red-200 rounded-lg p-2 mb-4 text-xs text-red-600">
+          {{ deleteImportError }}
+        </div>
+        <div class="flex gap-3 justify-center">
+          <button @click="deleteImportTarget=null" class="px-5 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">ยกเลิก</button>
+          <button @click="deleteImportRecord" :disabled="deletingImport"
+            class="px-5 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 flex items-center gap-2">
+            <span v-if="deletingImport" class="animate-spin">⏳</span>
+            {{ deletingImport ? 'กำลังลบ...' : 'ลบถาวร' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </Teleport>
 </template>
 
@@ -935,9 +1156,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import AdminLayout from '../../layouts/AdminLayout.vue'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../composables/useAuth'
+import { useSchoolConfig } from '../../composables/useSchoolConfig'
 import * as XLSX from 'xlsx'
 
 const { user } = useAuth()
+const { config: schoolConfig, fetchConfig, updateConfig } = useSchoolConfig()
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const TABS = [
@@ -1174,7 +1397,8 @@ function exportCurrentExcel() {
 // ══ TAB 2: นำเข้า DMC ══════════════════════════════════════════════════════════
 const importStep     = ref(1)
 const fileError      = ref('')
-const excelHeaders   = ref([])
+const excelHeaders   = ref([])   // unique display names (non-empty)
+const rawHeadersAll  = ref([])   // full array รักษา original index (อาจมี '' สำหรับช่องว่าง)
 const rawRows        = ref([])
 const parsedRows     = ref([])
 const colMapping     = ref({})
@@ -1182,6 +1406,13 @@ const importMeta     = ref({ label:'', academic_year: new Date().getFullYear()+5
 const importProgress = ref(0)
 const importStatus   = ref('')
 const importDone     = ref(false)
+
+// แปลง column index (0-based) → ตัวอักษร Excel (A, B, ..., Z, AA, AB, ...)
+function colLetter(idx) {
+  let s = '', n = idx + 1
+  while (n > 0) { const r = (n-1) % 26; s = String.fromCharCode(65+r) + s; n = Math.floor((n-1)/26) }
+  return s
+}
 
 function handleFileUpload(e) {
   fileError.value = ''
@@ -1195,17 +1426,13 @@ function handleFileUpload(e) {
       const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' })
 
       // ── Smart header detection ─────────────────────────────────────────────
-      // ไฟล์ DMC มักมี metadata (วันที่สร้างรายงาน) ที่ row 1
-      // ให้ scan 20 แถวแรก หา row ที่มี recognized column names มากที่สุด
       const knownCols = new Set(Object.keys(COL_DETECT))
       function rowScore(row) {
         if (!row) return 0
         return row.filter(c => knownCols.has(String(c).trim())).length
       }
-      // ข้ามแถวว่างก่อน
       let hRow = 0
       while (hRow < raw.length && (!raw[hRow] || raw[hRow].every(c => !c))) hRow++
-      // หา row ที่ได้ score สูงสุดใน 20 แถวถัดไป
       let bestRow = hRow, bestScore = rowScore(raw[hRow])
       for (let r = hRow + 1; r < Math.min(hRow + 20, raw.length); r++) {
         const score = rowScore(raw[r])
@@ -1214,18 +1441,37 @@ function handleFileUpload(e) {
       hRow = bestRow
       // ──────────────────────────────────────────────────────────────────────
 
-      const headers = (raw[hRow]||[]).map(h=>String(h).trim()).filter(h=>h)
-      const rows    = raw.slice(hRow+1).filter(r=>r.some(c=>c!==''))
+      // ── Unique headers: เติม [A],[C],[F] เมื่อหัวคอลัมน์ซ้ำกัน ────────────
+      const rawHeaderRow = raw[hRow] || []
+      // นับว่าแต่ละชื่อซ้ำกี่ครั้ง
+      const nameCount = {}
+      rawHeaderRow.forEach(h => {
+        const n = String(h).trim(); if (n) nameCount[n] = (nameCount[n]||0)+1
+      })
+      // สร้าง allH: รักษาตำแหน่ง column เดิม เติม [X] เมื่อซ้ำ
+      const allH = rawHeaderRow.map((h, i) => {
+        const n = String(h).trim()
+        if (!n) return ''
+        return nameCount[n] > 1 ? `${n} [${colLetter(i)}]` : n
+      })
+      rawHeadersAll.value = allH   // เก็บ index ตรง เพื่อให้ goToPreview ดึง row[idx] ถูก
+      const headers = allH.filter(h => h)   // เฉพาะ non-empty สำหรับ dropdown
+      // ──────────────────────────────────────────────────────────────────────
+
+      const rows = raw.slice(hRow+1).filter(r=>r.some(c=>c!==''))
       excelHeaders.value = headers
       rawRows.value      = rows
-      // Auto-detect
+
+      // Auto-detect (ลบ [X] suffix ก่อน lookup)
       const mapping = {}
       DB_COLS.forEach(col => { mapping[col.key]='' })
       headers.forEach(h => {
-        const k = COL_DETECT[h.trim()]
+        const bare = h.replace(/\s*\[.*?\]$/, '').trim()
+        const k = COL_DETECT[bare]
         if (k && !mapping[k]) mapping[k] = h
       })
       colMapping.value = mapping
+
       // Auto-fill semester
       if (!importMeta.value.label) {
         const sem = (new Date().getMonth()+1 >= 5 && new Date().getMonth()+1 <= 10) ? 1 : 2
@@ -1245,12 +1491,13 @@ const canProceed     = computed(() =>
 )
 
 function goToPreview() {
-  const headers = excelHeaders.value
-  const mapping = colMapping.value
+  // ใช้ rawHeadersAll (รักษา index ต้นฉบับ) เพื่อดึงข้อมูลถูก column
+  const allHeaders = rawHeadersAll.value
+  const mapping    = colMapping.value
   parsedRows.value = rawRows.value.map(row => {
     const obj = {}
     DB_COLS.forEach(col => {
-      const idx = mapping[col.key] ? headers.indexOf(mapping[col.key]) : -1
+      const idx = mapping[col.key] ? allHeaders.indexOf(mapping[col.key]) : -1
       obj[col.key] = idx >= 0 ? String(row[idx]??'').trim() : ''
     })
     return obj
@@ -1277,12 +1524,18 @@ async function executeImport() {
   try {
     const BATCH = 200, rows = parsedRows.value, year = importMeta.value.academic_year
 
-    // 1. Create dmc_imports
-    const { data:imp, error:impErr } = await supabase.from('dmc_imports')
-      .insert({ label:importMeta.value.label, academic_year:year, semester:importMeta.value.semester,
-        total_count:rows.length, note:importMeta.value.note||null, created_by:user.value?.id||null })
+    // 1. Create import_session (FK ที่ student_snapshots ใช้)
+    const { data:imp, error:impErr } = await supabase.from('import_sessions')
+      .insert({
+        academic_year:    year,
+        checkpoint:       importMeta.value.semester,        // semester 1/2
+        checkpoint_label: importMeta.value.label,
+        total_rows:       rows.length,
+        imported_by:      user.value?.id || null,
+        notes:            importMeta.value.note || null,
+      })
       .select().single()
-    if (impErr) throw new Error(`สร้างรอบนำเข้าไม่ได้: ${impErr.message}`)
+    if (impErr) throw new Error(`สร้าง Import Session ไม่ได้: ${impErr.message}`)
     importProgress.value = 5
 
     // 2. Insert student_snapshots (batch ละ 200 ลดขนาด payload)
@@ -1290,7 +1543,7 @@ async function executeImport() {
     importStatus.value = 'กำลังบันทึก Snapshots...'
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH).map(r => ({
-        import_id:    imp.id,
+        import_session_id: imp.id,
         academic_year: year,
         student_code: r.student_code  || null,
         prefix:       r.prefix        || null,
@@ -1318,19 +1571,19 @@ async function executeImport() {
       importStatus.value   = `Snapshots: ${done.toLocaleString()} / ${rows.length.toLocaleString()}`
     }
 
-    // 3. Upsert students (เฉพาะฟิลด์หลัก ไม่ใส่ gender/national_id ถ้า column ยังไม่มี)
+    // 3. Upsert students
     done = 0
     importStatus.value = 'กำลังอัปเดตข้อมูลนักเรียนปัจจุบัน...'
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH).map(r => ({
         student_code:   r.student_code  || null,
         prefix:         r.prefix        || null,
-        first_name:     r.first_name    || null,
-        last_name:      r.last_name     || null,
+        first_name:     r.first_name    || '',    // NOT NULL ใน DB
+        last_name:      r.last_name     || '',    // NOT NULL ใน DB
         gender:         r.gender        || null,
         national_id:    r.national_id   || null,
         grade_level:    r.grade_level   || null,
-        room:           r.room          || null,
+        room:           r.room ? (parseInt(r.room) || null) : null,  // smallint
         is_active:      true,
         last_import_id: imp.id,
       }))
@@ -1370,31 +1623,93 @@ async function executeImport() {
 }
 
 function resetImport() {
-  importStep.value=1; fileError.value=''; excelHeaders.value=[]
+  importStep.value=1; fileError.value=''; excelHeaders.value=[]; rawHeadersAll.value=[]
   rawRows.value=[]; parsedRows.value=[]; colMapping.value={}
   importProgress.value=0; importStatus.value=''; importDone.value=false; importError.value=''
 }
 
 // ══ TAB 3: History ══════════════════════════════════════════════════════════════
-const loadingHistory = ref(false)
-const imports        = ref([])
-const latestImport   = ref(null)
+const loadingHistory    = ref(false)
+const imports           = ref([])
+const latestImport      = ref(null)
+const deleteImportTarget = ref(null)   // import record ที่กำลังจะลบ
+const deletingImport     = ref(false)
+const deleteImportError  = ref('')
+
+function confirmDeleteImport(imp) {
+  deleteImportTarget.value = imp
+  deleteImportError.value  = ''
+}
+
+async function deleteImportRecord() {
+  if (!deleteImportTarget.value) return
+  deletingImport.value = true
+  deleteImportError.value = ''
+  try {
+    const id = deleteImportTarget.value.id
+    // 1. ลบ snapshots ที่เชื่อมกับ session นี้ก่อน (FK ต้องลบลูกก่อนพ่อ)
+    const { error: snapErr } = await supabase
+      .from('student_snapshots')
+      .delete()
+      .eq('import_session_id', id)
+    if (snapErr) throw snapErr
+    // 2. ลบ import_session
+    const { error: sessErr } = await supabase
+      .from('import_sessions')
+      .delete()
+      .eq('id', id)
+    if (sessErr) throw sessErr
+    // 3. อัปเดต local state
+    imports.value = imports.value.filter(i => i.id !== id)
+    latestImport.value = imports.value[0] || null
+    deleteImportTarget.value = null
+  } catch (e) {
+    console.error(e)
+    deleteImportError.value = e.message || 'เกิดข้อผิดพลาด'
+  } finally {
+    deletingImport.value = false
+  }
+}
 
 async function loadImports() {
   loadingHistory.value = true
   try {
-    const { data, error } = await supabase.from('dmc_imports').select('*').order('imported_at',{ascending:false})
+    const { data, error } = await supabase.from('import_sessions').select('*').order('imported_at',{ascending:false})
     if (error) throw error
-    const result = data || []
-    for (const imp of result) {
-      const { data:s } = await supabase.from('student_snapshots').select('gender, prefix').eq('import_id',imp.id)
-      imp.male_count   = (s||[]).filter(x => classifyGender(x.gender, x.prefix) === 'ชาย').length
-      imp.female_count = (s||[]).filter(x => classifyGender(x.gender, x.prefix) === 'หญิง').length
-    }
+    const result = (data || []).map(imp => ({
+      ...imp,
+      label:        imp.checkpoint_label || `ภาคเรียนที่ ${imp.checkpoint}/${imp.academic_year}`,
+      semester:     imp.checkpoint,
+      total_count:  imp.total_rows || 0,
+      note:         imp.notes,
+      male_count:   null,
+      female_count: null,
+    }))
     imports.value      = result
     latestImport.value = result[0] || null
   } catch (e) { console.error(e) }
   finally { loadingHistory.value = false }
+
+  // โหลด gender counts ในพื้นหลัง (progressive) — paginated รองรับโรงใหญ่
+  for (const imp of imports.value) {
+    try {
+      let male = 0, female = 0, from = 0
+      while (true) {
+        const { data:s } = await supabase.from('student_snapshots')
+          .select('gender, prefix').eq('import_session_id', imp.id)
+          .range(from, from + 999)
+        if (!s?.length) break
+        s.forEach(x => {
+          const g = classifyGender(x.gender, x.prefix)
+          if (g === 'ชาย') male++; else if (g === 'หญิง') female++
+        })
+        if (s.length < 1000) break
+        from += 1000
+      }
+      const target = imports.value.find(i => i.id === imp.id)
+      if (target) { target.male_count = male; target.female_count = female }
+    } catch { /* skip if error on individual session */ }
+  }
 }
 
 const chronologicalImports = computed(() =>
@@ -1402,16 +1717,191 @@ const chronologicalImports = computed(() =>
 )
 const maxCount = computed(() => Math.max(...imports.value.map(i=>i.total_count), 1))
 
+// ── BAR Chart: ชาย/หญิง/รวม ──────────────────────────────────────────────────
+const BAR = { W: 760, H: 260, PL: 58, PR: 20, PT: 28, PB: 65 }
+const hoveredBar = ref(null)
+
+const barGroups = computed(() => {
+  const data = chronologicalImports.value
+  if (!data.length) return []
+  const maxV = Math.max(...data.map(d => d.total_count), 1)
+  const innerW = BAR.W - BAR.PL - BAR.PR
+  const innerH = BAR.H - BAR.PT - BAR.PB
+  const n = data.length
+  const groupW = innerW / n
+  const gPad = Math.max(4, groupW * 0.10)
+  const bGap = Math.max(2, groupW * 0.04)
+  const bW   = Math.max(4, (groupW - gPad * 2 - bGap * 2) / 3)
+  const botY = BAR.PT + innerH
+
+  return data.map((d, gi) => {
+    const startX = BAR.PL + gi * groupW + gPad
+    const bars = [
+      { type: 'Male',   label: 'ชาย',  value: d.male_count   ?? 0 },
+      { type: 'Female', label: 'หญิง', value: d.female_count ?? 0 },
+      { type: 'Total',  label: 'รวม',  value: d.total_count  || 0 },
+    ].map((bar, bi) => {
+      const h = Math.max(bar.value > 0 ? 3 : 0, (bar.value / maxV) * innerH)
+      const x = startX + bi * (bW + bGap)
+      return { ...bar, x, y: botY - h, w: bW, h, cx: x + bW / 2 }
+    })
+    return { d, bars, groupW, centerX: startX + bW + bGap }
+  })
+})
+
+const barYTicks = computed(() => {
+  const data = chronologicalImports.value
+  if (!data.length) return []
+  const maxV = Math.max(...data.map(d => d.total_count), 1)
+  const innerH = BAR.H - BAR.PT - BAR.PB
+  const botY = BAR.PT + innerH
+  const rawStep = maxV / 5
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep || 1)))
+  const step = Math.ceil((rawStep || 1) / mag) * mag || 100
+  const ticks = []
+  for (let v = 0; v <= maxV * 1.05; v += step) {
+    const y = +(botY - (v / maxV) * innerH).toFixed(1)
+    if (y >= BAR.PT - 6 && y <= botY + 4) {
+      const label = v >= 10000 ? `${Math.round(v/1000)}k` : v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toString()
+      ticks.push({ y, v, label })
+    }
+    if (ticks.length >= 7) break
+  }
+  return ticks
+})
+
+// ── Edit Import Label ────────────────────────────────────────────────────────
+const editImportTarget   = ref(null)
+const editImportLabel    = ref('')
+const editImportError    = ref('')
+const savingImportLabel  = ref(false)
+
+function confirmEditImport(imp) {
+  editImportTarget.value  = imp
+  editImportLabel.value   = imp.label || ''
+  editImportError.value   = ''
+}
+
+async function saveImportLabel() {
+  if (!editImportTarget.value || !editImportLabel.value.trim()) return
+  savingImportLabel.value = true; editImportError.value = ''
+  try {
+    const { error } = await supabase
+      .from('import_sessions')
+      .update({ checkpoint_label: editImportLabel.value.trim() })
+      .eq('id', editImportTarget.value.id)
+    if (error) throw error
+    // อัปเดต local
+    const target = imports.value.find(i => i.id === editImportTarget.value.id)
+    if (target) target.label = editImportLabel.value.trim()
+    if (latestImport.value?.id === editImportTarget.value.id)
+      latestImport.value.label = editImportLabel.value.trim()
+    editImportTarget.value = null
+  } catch (e) {
+    editImportError.value = e.message || 'เกิดข้อผิดพลาด'
+  } finally {
+    savingImportLabel.value = false
+  }
+}
+
+// ── SVG Line Chart ────────────────────────────────────────────────────────────
+const CHART = { W: 760, H: 220, PL: 58, PR: 24, PT: 32, PB: 44 }
+const hoveredChartPt = ref(null)
+
+function shortLabel(label) {
+  return (label || '')
+    .replace('ภาคเรียนที่ ', 'เทอม ')
+    .replace('ภาคเรียน', 'เทอม')
+    .substring(0, 14)
+}
+
+const chartPoints = computed(() => {
+  const data = chronologicalImports.value
+  if (!data.length) return []
+  const counts = data.map(d => d.total_count)
+  const maxV = Math.max(...counts), minV = Math.min(...counts)
+  const range = maxV - minV || maxV || 1
+  const innerW = CHART.W - CHART.PL - CHART.PR
+  const innerH = CHART.H - CHART.PT - CHART.PB
+  return data.map((d, i) => ({
+    x: CHART.PL + (data.length > 1 ? i / (data.length - 1) : 0.5) * innerW,
+    y: CHART.PT + (1 - (d.total_count - minV) / range) * innerH,
+    d,
+  }))
+})
+
+const chartLinePath = computed(() => {
+  const pts = chartPoints.value
+  if (pts.length < 2) return ''
+  let path = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
+  for (let i = 1; i < pts.length; i++) {
+    const cpX = ((pts[i-1].x + pts[i].x) / 2).toFixed(1)
+    path += ` C ${cpX} ${pts[i-1].y.toFixed(1)}, ${cpX} ${pts[i].y.toFixed(1)}, ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`
+  }
+  return path
+})
+
+const chartAreaPath = computed(() => {
+  const pts = chartPoints.value
+  if (pts.length < 2) return ''
+  const botY = (CHART.H - CHART.PB).toFixed(1)
+  let path = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`
+  for (let i = 1; i < pts.length; i++) {
+    const cpX = ((pts[i-1].x + pts[i].x) / 2).toFixed(1)
+    path += ` C ${cpX} ${pts[i-1].y.toFixed(1)}, ${cpX} ${pts[i].y.toFixed(1)}, ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`
+  }
+  path += ` L ${pts[pts.length-1].x.toFixed(1)} ${botY} L ${pts[0].x.toFixed(1)} ${botY} Z`
+  return path
+})
+
+const chartYTicks = computed(() => {
+  const data = chronologicalImports.value
+  if (!data.length) return []
+  const counts = data.map(d => d.total_count)
+  const maxV = Math.max(...counts), minV = Math.min(...counts)
+  const range = maxV - minV || maxV || 100
+  const innerH = CHART.H - CHART.PT - CHART.PB
+  const mag  = Math.pow(10, Math.floor(Math.log10(range / 4)))
+  const step = Math.ceil((range / 4) / mag) * mag
+  const start = Math.floor(minV / step) * step
+  const ticks = []
+  for (let v = start; v <= maxV + step; v += step) {
+    const y = CHART.PT + (1 - (v - minV) / range) * innerH
+    if (y >= CHART.PT - 10 && y <= CHART.PT + innerH + 10) {
+      const label = v >= 10000 ? `${Math.round(v/1000)}k` : v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toLocaleString()
+      ticks.push({ y: +y.toFixed(1), label })
+    }
+  }
+  return ticks
+})
+
 // ══ TAB 4: Health / BMI ═════════════════════════════════════════════════════════
-const loadingBMI = ref(false)
-const bmiData    = ref([])   // นักเรียนปัจจุบัน + น้ำหนัก/ส่วนสูงล่าสุดที่มีข้อมูล
+const loadingBMI      = ref(false)
+const bmiData         = ref([])   // นักเรียนปัจจุบัน + น้ำหนัก/ส่วนสูงล่าสุดที่มีข้อมูล
+const showPublicBMI   = ref(false)   // toggle แสดง BMI ในหน้าสาธารณะ
+const savingBMIToggle = ref(false)
+const bmiToggleSaved  = ref(false)
+
+async function savePublicBMIToggle() {
+  savingBMIToggle.value = true
+  bmiToggleSaved.value = false
+  try {
+    await updateConfig({ show_public_bmi: showPublicBMI.value })
+    bmiToggleSaved.value = true
+    setTimeout(() => { bmiToggleSaved.value = false }, 2500)
+  } catch (e) {
+    alert('บันทึกไม่สำเร็จ: ' + e.message)
+  } finally {
+    savingBMIToggle.value = false
+  }
+}
 
 async function loadBMIData() {
   loadingBMI.value = true
   try {
-    // ── Step 1: หา import ล่าสุด ───────────────────────────────────────────────
+    // ── Step 1: หา import_session ล่าสุด ──────────────────────────────────────
     const { data: imp } = await supabase
-      .from('dmc_imports')
+      .from('import_sessions')
       .select('id')
       .order('imported_at', { ascending: false })
       .limit(1)
@@ -1425,7 +1915,7 @@ async function loadBMIData() {
       const { data, error } = await supabase
         .from('student_snapshots')
         .select('student_code, weight, height, grade_level, room, gender, prefix')
-        .eq('import_id', imp.id)
+        .eq('import_session_id', imp.id)
         .range(from, from + 999)
       if (error) throw error
       if (!data?.length) break
@@ -1641,6 +2131,8 @@ async function deleteStudent() {
 
 // ── Init ────────────────────────────────────────────────────────────────────────
 onMounted(async () => {
+  await fetchConfig()
+  showPublicBMI.value = schoolConfig.value?.show_public_bmi ?? false
   await Promise.all([loadCurrentStudents(), loadImports()])
   await loadBMIData()   // โหลดหลัง loadImports เพราะต้องการ latestImport.id
 })

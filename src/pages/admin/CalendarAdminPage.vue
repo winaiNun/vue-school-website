@@ -60,6 +60,20 @@
               </button>
             </div>
           </div>
+          <!-- Import Holiday -->
+          <div class="relative">
+            <input ref="xlsxInput" type="file" accept=".xlsx,.xls" class="hidden" @change="onXlsxFile" />
+            <div class="flex items-center gap-2">
+              <button @click="downloadTemplate"
+                class="flex items-center gap-1.5 border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 rounded-xl px-3 py-2 text-sm font-medium shadow-sm transition-colors">
+                📥 Template วันหยุด
+              </button>
+              <button @click="xlsxInput.click()"
+                class="flex items-center gap-1.5 border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl px-3 py-2 text-sm font-medium shadow-sm transition-colors">
+                📤 นำเข้าวันหยุด
+              </button>
+            </div>
+          </div>
           <button @click="openCreateModal(null)"
             class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-sm transition-colors">
             <span class="text-lg leading-none">+</span> เพิ่มกิจกรรม
@@ -159,11 +173,23 @@
 
         <!-- RIGHT: Event List -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-          <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h4 class="font-semibold text-gray-900 text-sm">กิจกรรมเดือน{{ thaiMonths[currentMonth] }}</h4>
-            <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-              {{ eventsThisMonth.length }} รายการ
-            </span>
+          <!-- Header -->
+          <div class="px-4 py-3 border-b border-gray-100">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="font-semibold text-gray-900 text-sm">กิจกรรมเดือน{{ thaiMonths[currentMonth] }}</h4>
+              <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                {{ eventsThisMonth.length }} รายการ
+              </span>
+            </div>
+            <!-- Type breakdown badges -->
+            <div v-if="eventsThisMonth.length" class="flex flex-wrap gap-1.5">
+              <span v-for="et in eventTypes" :key="et.value"
+                v-show="eventsThisMonthByType[et.value]"
+                :class="['inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium border', et.color]">
+                <span :class="['w-1.5 h-1.5 rounded-full', et.dot]"></span>
+                {{ et.label }} {{ eventsThisMonthByType[et.value] }}
+              </span>
+            </div>
           </div>
 
           <div class="flex-1 overflow-y-auto max-h-[520px]">
@@ -173,16 +199,27 @@
               <p class="text-sm">ไม่มีกิจกรรมในเดือนนี้</p>
             </div>
 
-            <div v-else class="divide-y divide-gray-50">
-              <div v-for="ev in eventsThisMonth" :key="ev.id"
-                class="px-4 py-3 hover:bg-gray-50 transition-colors group">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                      <span :class="['text-[10px] px-2 py-0.5 rounded-full font-medium border',
-                        eventTypeMap[ev.event_type]?.color || 'bg-gray-100 text-gray-600 border-gray-200']">
-                        {{ eventTypeMap[ev.event_type]?.label || ev.event_type }}
-                      </span>
+            <!-- Grouped by type -->
+            <div v-else>
+              <template v-for="et in eventTypes" :key="et.value">
+                <template v-if="eventsThisMonthByType[et.value]">
+                  <!-- Group header -->
+                  <div :class="['px-4 py-1.5 flex items-center gap-1.5 sticky top-0 z-10 border-b border-gray-50', et.color.replace('border-','').split(' ').filter(c=>c.startsWith('bg-')).join(' ') || 'bg-gray-50']"
+                    style="background:inherit">
+                    <span :class="['w-2 h-2 rounded-full flex-shrink-0', et.dot]"></span>
+                    <span class="text-[11px] font-bold tracking-wide text-gray-600">{{ et.label }}</span>
+                    <span class="ml-auto text-[10px] text-gray-400">{{ eventsThisMonthByType[et.value] }} รายการ</span>
+                  </div>
+                  <!-- Events in group -->
+                  <div v-for="ev in eventsThisMonthGrouped[et.value]" :key="ev.id"
+                    class="px-4 py-3 hover:bg-gray-50 transition-colors group border-b border-gray-50 last:border-b-0">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span :class="['text-[10px] px-2 py-0.5 rounded-full font-medium border',
+                            eventTypeMap[ev.event_type]?.color || 'bg-gray-100 text-gray-600 border-gray-200']">
+                            {{ eventTypeMap[ev.event_type]?.label || ev.event_type }}
+                          </span>
                       <span v-if="!ev.is_public" class="text-[10px] text-gray-400">🔒</span>
                     </div>
                     <p class="text-sm font-medium text-gray-800 truncate">{{ ev.title }}</p>
@@ -211,9 +248,11 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </template><!-- /v-if eventsThisMonthByType -->
+          </template><!-- /v-for eventTypes -->
+            </div><!-- /v-else -->
+          </div><!-- /overflow container -->
+        </div><!-- /right panel -->
       </div>
 
       <!-- ===== LEGEND ===== -->
@@ -370,11 +409,78 @@
       </Transition>
     </Teleport>
 
+    <!-- ===== IMPORT PREVIEW MODAL ===== -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showImportModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" @click.self="showImportModal = false">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div class="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-gray-900">📤 ตรวจสอบข้อมูลก่อนนำเข้า</h3>
+                <p class="text-xs text-gray-400 mt-0.5">พบ {{ importRows.length }} รายการ · จะ<span class="text-red-500 font-medium">แทนที่</span>วันหยุดเดิมทั้งหมดของปีนี้</p>
+              </div>
+              <button @click="showImportModal = false" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+
+            <!-- Error rows -->
+            <div v-if="importErrors.length" class="mx-6 mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
+              <p class="text-xs font-semibold text-red-700 mb-1">⚠️ พบข้อผิดพลาด {{ importErrors.length }} แถว (จะถูกข้ามไป)</p>
+              <ul class="text-xs text-red-600 space-y-0.5">
+                <li v-for="e in importErrors.slice(0,5)" :key="e">{{ e }}</li>
+                <li v-if="importErrors.length > 5" class="text-red-400">...และอีก {{ importErrors.length - 5 }} รายการ</li>
+              </ul>
+            </div>
+
+            <!-- Preview Table -->
+            <div class="flex-1 overflow-y-auto px-6 py-4">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="border-b border-gray-100 text-gray-500 text-left">
+                    <th class="pb-2 pr-3">วันที่เริ่ม</th>
+                    <th class="pb-2 pr-3">วันที่สิ้นสุด</th>
+                    <th class="pb-2 pr-3 flex-1">ชื่อ</th>
+                    <th class="pb-2 pr-3">ประเภท</th>
+                    <th class="pb-2">ปีการศึกษา</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, i) in importRows" :key="i" class="border-b border-gray-50 hover:bg-gray-50">
+                    <td class="py-1.5 pr-3 font-mono">{{ row.start_date }}</td>
+                    <td class="py-1.5 pr-3 font-mono text-gray-400">{{ row.end_date || '-' }}</td>
+                    <td class="py-1.5 pr-3 text-gray-800">{{ row.title }}</td>
+                    <td class="py-1.5 pr-3">
+                      <span :class="['px-1.5 py-0.5 rounded-full text-xs', eventTypeMap[row.event_type]?.color || 'bg-gray-100 text-gray-600']">
+                        {{ eventTypeMap[row.event_type]?.label || row.event_type }}
+                      </span>
+                    </td>
+                    <td class="py-1.5 text-gray-500">{{ row.academic_year }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="px-6 py-4 border-t flex justify-end gap-3">
+              <button @click="showImportModal = false" class="px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">ยกเลิก</button>
+              <button @click="confirmImport" :disabled="importing || !importRows.length"
+                class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-2">
+                <svg v-if="importing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                {{ importing ? 'กำลังนำเข้า...' : `✅ นำเข้า ${importRows.length} รายการ` }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </AdminLayout>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 import { useSchoolConfig } from '../../composables/useSchoolConfig'
 import { printMonthly, printYearOverview, printEventList } from '../../utils/calendarPrint'
@@ -455,11 +561,33 @@ const eventsThisMonth = computed(() => {
   return events.value.filter(e => {
     const start = e.start_date || ''
     const end   = e.end_date   || e.start_date || ''
-    // event overlaps with this month
     const monthEnd   = `${monthStr}-${String(daysInMonth.value).padStart(2,'0')}`
     const monthStart = `${monthStr}-01`
     return start <= monthEnd && end >= monthStart
   })
+})
+
+// นับจำนวนแต่ละประเภท  { holiday: 5, activity: 3, ... }
+const eventsThisMonthByType = computed(() => {
+  const map = {}
+  for (const ev of eventsThisMonth.value) {
+    map[ev.event_type] = (map[ev.event_type] || 0) + 1
+  }
+  return map
+})
+
+// จัดกลุ่ม { holiday: [...], activity: [...], ... } เรียงตาม start_date
+const eventsThisMonthGrouped = computed(() => {
+  const map = {}
+  for (const ev of eventsThisMonth.value) {
+    if (!map[ev.event_type]) map[ev.event_type] = []
+    map[ev.event_type].push(ev)
+  }
+  // เรียงตาม start_date ภายในแต่ละกลุ่ม
+  for (const key of Object.keys(map)) {
+    map[key].sort((a, b) => a.start_date.localeCompare(b.start_date))
+  }
+  return map
 })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -629,6 +757,167 @@ async function deleteEvent() {
     saveError.value = err.message || 'ลบไม่สำเร็จ กรุณาลองใหม่'
   } finally {
     saving.value = false
+  }
+}
+
+// ─── Excel Import ─────────────────────────────────────────────────────────────
+const xlsxInput       = ref(null)
+const showImportModal = ref(false)
+const importRows      = ref([])
+const importErrors    = ref([])
+const importing       = ref(false)
+
+const VALID_TYPES = ['holiday', 'activity', 'exam', 'term', 'meeting', 'other']
+
+// วันหยุดราชการ 2569 (ตัวอย่าง / ปรับตามประกาศราชการ)
+const HOLIDAYS_2569 = [
+  { start_date: '2026-01-01', end_date: '2026-01-01', title: 'วันขึ้นปีใหม่', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-02-26', end_date: '2026-02-26', title: 'วันมาฆบูชา', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-04-06', end_date: '2026-04-06', title: 'วันจักรี', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-04-13', end_date: '2026-04-15', title: 'วันสงกรานต์', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-05-01', end_date: '2026-05-01', title: 'วันแรงงานแห่งชาติ', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-05-04', end_date: '2026-05-04', title: 'วันฉัตรมงคล', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-05-11', end_date: '2026-05-11', title: 'วันวิสาขบูชา', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-06-03', end_date: '2026-06-03', title: 'วันเฉลิมพระชนมพรรษาสมเด็จพระนางเจ้าฯ', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-07-08', end_date: '2026-07-08', title: 'วันอาสาฬหบูชา', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-07-09', end_date: '2026-07-09', title: 'วันเข้าพรรษา', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-07-28', end_date: '2026-07-28', title: 'วันเฉลิมพระชนมพรรษา ร.10', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-08-12', end_date: '2026-08-12', title: 'วันแม่แห่งชาติ', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-10-13', end_date: '2026-10-13', title: 'วันคล้ายวันสวรรคต ร.9', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-10-23', end_date: '2026-10-23', title: 'วันปิยมหาราช', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-12-05', end_date: '2026-12-05', title: 'วันพ่อแห่งชาติ', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-12-10', end_date: '2026-12-10', title: 'วันรัฐธรรมนูญ', event_type: 'holiday', academic_year: 2569 },
+  { start_date: '2026-12-31', end_date: '2026-12-31', title: 'วันสิ้นปี', event_type: 'holiday', academic_year: 2569 },
+]
+
+function downloadTemplate() {
+  // Use aoa_to_sheet so we can control cell types explicitly (force strings for dates)
+  const headerRow = ['start_date (YYYY-MM-DD)', 'end_date (YYYY-MM-DD)', 'title', 'event_type', 'academic_year']
+  const dataRows  = HOLIDAYS_2569.map(h => [h.start_date, h.end_date, h.title, h.event_type, h.academic_year])
+  const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows])
+
+  // Force date columns (col 0 & 1) to type string so Excel won't convert them
+  for (let r = 1; r <= HOLIDAYS_2569.length; r++) {
+    ;[0, 1].forEach(c => {
+      const addr = XLSX.utils.encode_cell({ r, c })
+      if (ws[addr]) ws[addr].t = 's'
+    })
+  }
+
+  ws['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 45 }, { wch: 12 }, { wch: 14 }]
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'วันหยุดราชการ')
+  XLSX.writeFile(wb, `template_holiday_${currentYear.value}.xlsx`)
+}
+
+// Convert whatever XLSX gives us (string / Date / serial number) → 'YYYY-MM-DD'
+function toDateStr(val) {
+  if (!val && val !== 0) return ''
+  if (typeof val === 'string') return val.trim()
+  if (val instanceof Date) {
+    const y = val.getFullYear()
+    const m = String(val.getMonth() + 1).padStart(2, '0')
+    const d = String(val.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  if (typeof val === 'number') {
+    try {
+      const info = XLSX.SSF.parse_date_code(val)
+      if (info) return `${info.y}-${String(info.m).padStart(2,'0')}-${String(info.d).padStart(2,'0')}`
+    } catch (_) { /* ignore */ }
+  }
+  return String(val).trim()
+}
+
+function onXlsxFile(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    try {
+      // cellDates:true → ให้ XLSX แปลง serial เป็น JS Date ก่อน แล้วเราแปลงต่อ
+      const wb   = XLSX.read(ev.target.result, { type: 'array', cellDates: true })
+      const ws   = wb.Sheets[wb.SheetNames[0]]
+      const raw  = XLSX.utils.sheet_to_json(ws, { defval: '' })
+
+      const rows   = []
+      const errors = []
+
+      raw.forEach((row, i) => {
+        const rowNum = i + 2 // Excel row (header = row 1)
+        const start = toDateStr(row['start_date (YYYY-MM-DD)'] ?? row['start_date'] ?? '')
+        const end   = toDateStr(row['end_date (YYYY-MM-DD)']   ?? row['end_date']   ?? '')
+        const title = (row['title'] || '').toString().trim()
+        const type  = (row['event_type'] || 'holiday').toString().trim()
+        const year  = parseInt(row['academic_year'] || currentYear.value) || currentYear.value
+
+        if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+          errors.push(`แถว ${rowNum}: start_date ไม่ถูกต้อง (${start || 'ว่าง'})`)
+          return
+        }
+        if (!title) {
+          errors.push(`แถว ${rowNum}: ไม่มีชื่อ (title)`)
+          return
+        }
+        if (!VALID_TYPES.includes(type)) {
+          errors.push(`แถว ${rowNum}: event_type "${type}" ไม่รู้จัก`)
+          return
+        }
+
+        rows.push({
+          start_date:    start,
+          end_date:      end && /^\d{4}-\d{2}-\d{2}$/.test(end) ? end : start,
+          title,
+          event_type:    type,
+          academic_year: year,
+          is_public:     true,
+        })
+      })
+
+      importRows.value   = rows
+      importErrors.value = errors
+      showImportModal.value = true
+    } catch (err) {
+      alert('อ่านไฟล์ไม่สำเร็จ: ' + err.message)
+    } finally {
+      // reset input so same file can be re-selected
+      e.target.value = ''
+    }
+  }
+  reader.readAsArrayBuffer(file)
+}
+
+async function confirmImport() {
+  if (!importRows.value.length) return
+  importing.value = true
+  try {
+    // Group rows by academic_year so we only delete years that appear in the file
+    const years = [...new Set(importRows.value.map(r => r.academic_year))]
+
+    for (const yr of years) {
+      const { error: delErr } = await supabase
+        .from('academic_calendar')
+        .delete()
+        .eq('event_type', 'holiday')
+        .eq('academic_year', yr)
+      if (delErr) throw delErr
+    }
+
+    const { error: insErr } = await supabase
+      .from('academic_calendar')
+      .insert(importRows.value)
+    if (insErr) throw insErr
+
+    await fetchEvents()
+    showImportModal.value = false
+    importRows.value      = []
+    importErrors.value    = []
+  } catch (err) {
+    alert('นำเข้าไม่สำเร็จ: ' + err.message)
+  } finally {
+    importing.value = false
   }
 }
 

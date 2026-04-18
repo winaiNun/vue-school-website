@@ -9,7 +9,7 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-export function getSectionBgStyle(bgStyle, stemColor = '#3b82f6', bgImage = '', bgOverlay = 'light') {
+export function getSectionBgStyle(bgStyle, stemColor = '#3b82f6', bgImage = '', bgOverlay = 'light', darkColor = '#1e3a5f') {
   const c = stemColor || '#3b82f6'
 
   switch (bgStyle) {
@@ -53,10 +53,28 @@ export function getSectionBgStyle(bgStyle, stemColor = '#3b82f6', bgImage = '', 
       }
     }
 
-    case 'dark':
+    case 'dark': {
+      // darkColor อาจเป็น hex เดียว → สร้าง gradient 3 stop โดย darken/lighten อัตโนมัติ
+      const base  = darkColor || '#1e3a5f'
+      const h     = base.replace('#', '')
+      const r0    = parseInt(h.slice(0, 2), 16)
+      const g0    = parseInt(h.slice(2, 4), 16)
+      const b0    = parseInt(h.slice(4, 6), 16)
+      const dark  = (v) => '#' + [r0, g0, b0].map((c, i) => {
+        const factors = [0.75, 0.85, 1.0]
+        return Math.min(255, Math.round(c * factors[i] * (i === [0,1,2][i] ? 1 : 1)))
+          .toString(16).padStart(2, '0')
+      }).join('')
+      // ง่ายกว่า: mid = base, start = darker 25%, end = slightly different hue
+      const toHex = (v) => Math.min(255, Math.max(0, Math.round(v))).toString(16).padStart(2,'0')
+      const startR = Math.round(r0 * 0.72), startG = Math.round(g0 * 0.72), startB = Math.min(255, Math.round(b0 * 0.85))
+      const endR   = Math.min(255, Math.round(r0 * 0.90)), endG = Math.round(g0 * 0.78), endB = Math.min(255, Math.round(b0 * 1.15))
+      const startHex = `#${toHex(startR)}${toHex(startG)}${toHex(startB)}`
+      const endHex   = `#${toHex(endR)}${toHex(endG)}${toHex(endB)}`
       return {
-        background: 'linear-gradient(135deg,#1e3a5f 0%,#1e3269 50%,#312e81 100%)',
+        background: `linear-gradient(135deg,${startHex} 0%,${base} 50%,${endHex} 100%)`,
       }
+    }
 
     case 'image': {
       if (!bgImage) return { background: '#f8fafc' }

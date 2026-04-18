@@ -34,15 +34,25 @@
       </div>
 
       <!-- Nav Items -->
-      <nav class="flex-1 py-4 overflow-y-auto">
-        <router-link v-for="item in navItems" :key="item.to" :to="item.to"
-          @click="isMobile && (sidebarOpen = false)"
-          :class="['flex items-center gap-3 px-4 py-3 text-sm transition-all duration-200 hover:bg-blue-700/50',
-            $route.path === item.to ? 'bg-blue-700 border-r-4 border-yellow-400 text-white' : 'text-blue-200']"
-        >
-          <span class="text-lg flex-shrink-0">{{ item.icon }}</span>
-          <span v-if="sidebarOpen" class="truncate">{{ item.label }}</span>
-        </router-link>
+      <nav class="flex-1 py-3 overflow-y-auto">
+        <template v-for="group in navGroups" :key="group.label">
+          <!-- Group Label -->
+          <div v-if="sidebarOpen && group.label"
+            class="px-4 pt-4 pb-1 text-[10px] font-semibold tracking-widest text-blue-400 uppercase select-none">
+            {{ group.label }}
+          </div>
+          <div v-else-if="!sidebarOpen && group.label" class="my-2 mx-3 border-t border-blue-700/60"></div>
+
+          <!-- Group Items -->
+          <router-link v-for="item in group.items" :key="item.to" :to="item.to"
+            @click="isMobile && (sidebarOpen = false)"
+            :class="['flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200 hover:bg-blue-700/50',
+              $route.path === item.to ? 'bg-blue-700 border-r-4 border-yellow-400 text-white' : 'text-blue-200']"
+          >
+            <span class="text-base flex-shrink-0">{{ item.icon }}</span>
+            <span v-if="sidebarOpen" class="truncate">{{ item.label }}</span>
+          </router-link>
+        </template>
       </nav>
 
       <!-- Bottom -->
@@ -175,31 +185,62 @@ onMounted(() => {
 })
 onUnmounted(() => window.removeEventListener('resize', checkMobile))
 
-const adminNavItems = [
-  { to: '/admin', icon: '📊', label: 'แดชบอร์ด' },
-  { to: '/admin/config', icon: '⚙️', label: 'ตั้งค่าโรงเรียน' },
-  { to: '/admin/users', icon: '👥', label: 'จัดการผู้ใช้' },
-  { to: '/admin/teachers', icon: '👨‍🏫', label: 'จัดการครู' },
-  { to: '/admin/org-pages', icon: '📄', label: 'ข้อมูลพื้นฐาน' },
-  { to: '/admin/news', icon: '📰', label: 'จัดการข่าว' },
-  { to: '/admin/media', icon: '📚', label: 'คลังสื่อ' },
-  { to: '/admin/activities', icon: '🖼️', label: 'จัดการกิจกรรม' },
-  { to: '/admin/sis',         icon: '🎓', label: 'ข้อมูลนักเรียน' },
-  { to: '/admin/calendar',    icon: '📅', label: 'ปฏิทินวิชาการ' },
-  { to: '/admin/documents',   icon: '📂', label: 'เอกสาร/ดาวน์โหลด' },
-  { to: '/admin/wpa',         icon: '📂', label: 'วPA ครู' },
-  { to: '/admin/nav-systems', icon: '🔗', label: 'เมนูระบบงาน' },
-  { to: '/admin/api-keys',   icon: '🔑', label: 'API Keys' },
+const adminNavGroups = [
+  {
+    label: '',
+    items: [
+      { to: '/admin', icon: '📊', label: 'แดชบอร์ด' },
+    ],
+  },
+  {
+    label: 'บุคลากร',
+    items: [
+      { to: '/admin/users',    icon: '👥', label: 'จัดการผู้ใช้' },
+      { to: '/admin/teachers', icon: '👨‍🏫', label: 'จัดการครู' },
+      { to: '/admin/wpa',      icon: '📋', label: 'วPA ครู' },
+    ],
+  },
+  {
+    label: 'นักเรียน',
+    items: [
+      { to: '/admin/students', icon: '🎓', label: 'จัดการนักเรียน' },
+      { to: '/admin/calendar', icon: '📅', label: 'ปฏิทินวิชาการ' },
+    ],
+  },
+  {
+    label: 'เนื้อหาสาธารณะ',
+    items: [
+      { to: '/admin/org-pages',  icon: '📄', label: 'ข้อมูลพื้นฐาน' },
+      { to: '/admin/news',       icon: '📰', label: 'จัดการข่าว' },
+      { to: '/admin/media',      icon: '📚', label: 'คลังสื่อ' },
+      { to: '/admin/activities', icon: '🖼️', label: 'จัดการกิจกรรม' },
+      { to: '/admin/documents',        icon: '📂', label: 'เอกสาร/ดาวน์โหลด' },
+      { to: '/admin/school-documents', icon: '📋', label: 'คำสั่ง/ประกาศ' },
+    ],
+  },
+  {
+    label: 'ระบบ',
+    items: [
+      { to: '/admin/config',      icon: '⚙️', label: 'ตั้งค่าโรงเรียน' },
+      { to: '/admin/nav-systems', icon: '🔗', label: 'เมนูระบบงาน' },
+      { to: '/admin/api-keys',    icon: '🔑', label: 'API Keys' },
+    ],
+  },
 ]
 
-const teacherNavItems = [
-  { to: '/dashboard', icon: '🏠', label: 'หน้าหลัก' },
-  { to: '/profile',   icon: '👤', label: 'โปรไฟล์ของฉัน' },
-  { to: '/students',  icon: '🎓', label: 'รายชื่อนักเรียน' },
-  { to: '/wpa',       icon: '📂', label: 'วPA ของฉัน' },
+const teacherNavGroups = [
+  {
+    label: '',
+    items: [
+      { to: '/dashboard', icon: '🏠', label: 'หน้าหลัก' },
+      { to: '/profile',   icon: '👤', label: 'โปรไฟล์ของฉัน' },
+      { to: '/students',  icon: '🎓', label: 'รายชื่อนักเรียน' },
+      { to: '/wpa',       icon: '📋', label: 'วPA ของฉัน' },
+    ],
+  },
 ]
 
-const navItems = computed(() => isAdmin.value ? adminNavItems : teacherNavItems)
+const navGroups = computed(() => isAdmin.value ? adminNavGroups : teacherNavGroups)
 
 const allPageTitles = {
   '/admin': 'แดชบอร์ด',
@@ -216,7 +257,8 @@ const allPageTitles = {
   '/admin/calendar': 'ปฏิทินวิชาการ',
   '/admin/wpa': 'วPA ครู',
   '/admin/nav-systems': 'เมนูระบบงาน',
-  '/admin/documents':   'เอกสาร/ดาวน์โหลด',
+  '/admin/documents':        'เอกสาร/ดาวน์โหลด',
+  '/admin/school-documents': 'คำสั่ง/ประกาศโรงเรียน',
   '/dashboard': 'หน้าหลัก',
   '/profile': 'โปรไฟล์ของฉัน',
   '/wpa': 'วPA ของฉัน',

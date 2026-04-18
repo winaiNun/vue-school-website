@@ -14,7 +14,8 @@ const routes = [
   { path: '/about/:slug', name: 'OrgDetail',  component: () => import('../pages/public/OrgDetailPage.vue') },
   { path: '/wpa-public',  name: 'WpaPublic',  component: () => import('../pages/public/WpaPublicPage.vue') },
   { path: '/calendar',    name: 'Calendar',   component: () => import('../pages/public/CalendarPage.vue') },
-  { path: '/documents',   name: 'Documents',  component: () => import('../pages/public/DocumentsPage.vue') },
+  { path: '/documents',          name: 'Documents',       component: () => import('../pages/public/DocumentsPage.vue') },
+  { path: '/school-documents',   name: 'SchoolDocuments', component: () => import('../pages/public/SchoolDocumentsPublicPage.vue') },
 
   // Auth
   { path: '/login',          name: 'Login',         component: () => import('../pages/auth/LoginPage.vue'),        meta: { requiresGuest: true } },
@@ -37,7 +38,8 @@ const routes = [
   { path: '/admin/documents',    name: 'AdminDocuments',  component: () => import('../pages/admin/DocumentsAdminPage.vue'),   meta: { requiresAdmin: true } },
   { path: '/admin/sis',          name: 'AdminSis',        component: () => import('../pages/admin/SisPage.vue'),              meta: { requiresAdmin: true } },
   { path: '/admin/sis/import',   name: 'AdminSisImport',  component: () => import('../pages/admin/SisImportPage.vue'),        meta: { requiresAdmin: true } },
-  { path: '/admin/api-keys',     name: 'AdminApiKeys',    component: () => import('../pages/admin/ApiKeysPage.vue'),          meta: { requiresAdmin: true } },
+  { path: '/admin/api-keys',          name: 'AdminApiKeys',       component: () => import('../pages/admin/ApiKeysPage.vue'),              meta: { requiresAdmin: true } },
+  { path: '/admin/school-documents', name: 'AdminSchoolDocuments', component: () => import('../pages/admin/SchoolDocumentsAdminPage.vue'), meta: { requiresAdmin: true } },
   { path: '/students-info',      name: 'StudentsInfo',    component: () => import('../pages/public/StudentsDashboardPage.vue') },
   { path: '/students-health',   name: 'StudentsHealth',  component: () => import('../pages/public/StudentHealthPage.vue') },
   { path: '/calendar',           name: 'Calendar',        component: () => import('../pages/public/CalendarPage.vue') },
@@ -59,7 +61,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   // หน้า public ไม่ต้องเช็ค auth
-  const publicRoutes = ['Home', 'News', 'NewsDetail', 'Activities', 'Media', 'MediaDetail', 'Personnel', 'PersonnelStats', 'OrgDetail', 'WpaPublic', 'StudentsInfo', 'StudentsHealth', 'Calendar', 'Documents']
+  const publicRoutes = ['Home', 'News', 'NewsDetail', 'Activities', 'Media', 'MediaDetail', 'Personnel', 'PersonnelStats', 'OrgDetail', 'WpaPublic', 'StudentsInfo', 'StudentsHealth', 'Calendar', 'Documents', 'SchoolDocuments']
   if (publicRoutes.includes(to.name)) return
 
   // รอให้ initAuth() เสร็จก่อน (ป้องกัน auth-lock ชนกัน)

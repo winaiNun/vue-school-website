@@ -61,6 +61,78 @@
   --color-indigo-900: oklch(0.360 0.098 292);
 }
 
+/* ธีมเขียวทะเล: แทน blue ด้วย teal */
+[data-theme="teal"] {
+  --color-blue-50:  oklch(0.984 0.014 180);
+  --color-blue-100: oklch(0.963 0.035 183);
+  --color-blue-200: oklch(0.923 0.070 184);
+  --color-blue-300: oklch(0.857 0.118 183);
+  --color-blue-400: oklch(0.777 0.152 181);
+  --color-blue-500: oklch(0.703 0.143 182);
+  --color-blue-600: oklch(0.600 0.118 184);
+  --color-blue-700: oklch(0.511 0.096 186);
+  --color-blue-800: oklch(0.437 0.078 188);
+  --color-blue-900: oklch(0.386 0.063 188);
+  --color-blue-950: oklch(0.277 0.046 192);
+  --color-indigo-600: oklch(0.511 0.096 186);
+  --color-indigo-800: oklch(0.437 0.078 188);
+  --color-indigo-900: oklch(0.386 0.063 188);
+}
+
+/* ธีมทองเหลือง: แทน blue ด้วย amber */
+[data-theme="amber"] {
+  --color-blue-50:  oklch(0.987 0.022 95);
+  --color-blue-100: oklch(0.962 0.059 98);
+  --color-blue-200: oklch(0.924 0.120 96);
+  --color-blue-300: oklch(0.879 0.169 91);
+  --color-blue-400: oklch(0.828 0.189 84);
+  --color-blue-500: oklch(0.769 0.188 70);
+  --color-blue-600: oklch(0.666 0.179 58);
+  --color-blue-700: oklch(0.555 0.163 49);
+  --color-blue-800: oklch(0.473 0.137 46);
+  --color-blue-900: oklch(0.414 0.112 45);
+  --color-blue-950: oklch(0.279 0.077 45);
+  --color-indigo-600: oklch(0.555 0.163 49);
+  --color-indigo-800: oklch(0.473 0.137 46);
+  --color-indigo-900: oklch(0.414 0.112 45);
+}
+
+/* ธีมเทาเข้ม: แทน blue ด้วย slate */
+[data-theme="slate"] {
+  --color-blue-50:  oklch(0.984 0.003 247);
+  --color-blue-100: oklch(0.968 0.007 247);
+  --color-blue-200: oklch(0.929 0.013 255);
+  --color-blue-300: oklch(0.869 0.022 252);
+  --color-blue-400: oklch(0.704 0.040 256);
+  --color-blue-500: oklch(0.554 0.046 257);
+  --color-blue-600: oklch(0.446 0.043 257);
+  --color-blue-700: oklch(0.372 0.044 257);
+  --color-blue-800: oklch(0.279 0.041 260);
+  --color-blue-900: oklch(0.208 0.042 265);
+  --color-blue-950: oklch(0.129 0.042 264);
+  --color-indigo-600: oklch(0.372 0.044 257);
+  --color-indigo-800: oklch(0.279 0.041 260);
+  --color-indigo-900: oklch(0.208 0.042 265);
+}
+
+/* ธีมแดงเลือดหมู: แทน blue ด้วย rose เข้ม */
+[data-theme="maroon"] {
+  --color-blue-50:  oklch(0.975 0.010 15);
+  --color-blue-100: oklch(0.950 0.024 16);
+  --color-blue-200: oklch(0.900 0.052 14);
+  --color-blue-300: oklch(0.830 0.105 14);
+  --color-blue-400: oklch(0.720 0.190 15);
+  --color-blue-500: oklch(0.618 0.258 22);
+  --color-blue-600: oklch(0.520 0.240 19);
+  --color-blue-700: oklch(0.430 0.198 16);
+  --color-blue-800: oklch(0.350 0.148 12);
+  --color-blue-900: oklch(0.278 0.100 10);
+  --color-blue-950: oklch(0.190 0.068 10);
+  --color-indigo-600: oklch(0.430 0.198 16);
+  --color-indigo-800: oklch(0.350 0.148 12);
+  --color-indigo-900: oklch(0.278 0.100 10);
+}
+
 /* ธีมไว้ทุกข์: ขาวดำทั้งหมดรวมรูปภาพ (ตั้งใจ) */
 [data-theme="mono"] body { filter: grayscale(1); }
 
