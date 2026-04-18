@@ -293,6 +293,7 @@ CREATE TABLE IF NOT EXISTS public.import_sessions (
   checkpoint_label VARCHAR(100) DEFAULT '',
   total_rows       INTEGER      DEFAULT 0,
   imported_by      UUID         REFERENCES public.profiles(id) ON DELETE SET NULL,
+  notes            TEXT         DEFAULT '',
   imported_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
