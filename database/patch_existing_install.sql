@@ -340,7 +340,47 @@ FROM public.import_sessions;
 
 
 -- ============================================================
--- 9. Indexes ใหม่
+-- 9. RPC Functions ที่ขาด
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.get_all_wpa_admin()
+RETURNS TABLE (
+  id                UUID,
+  user_id           UUID,
+  year              INTEGER,
+  agreement_url     TEXT,
+  portfolio_url     TEXT,
+  note              TEXT,
+  is_public         BOOLEAN,
+  full_name         TEXT,
+  position          TEXT,
+  subject_group     TEXT,
+  profile_image_url TEXT
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT
+    w.id,
+    w.user_id,
+    w.year,
+    w.agreement_url,
+    w.portfolio_url,
+    w.note,
+    w.is_public,
+    COALESCE(tp.prefix || tp.first_name || ' ' || tp.last_name, p.full_name, p.email)::text AS full_name,
+    COALESCE(tp.position, p.position, '')::text       AS position,
+    COALESCE(tp.subject_group, p.subject_group, '')::text AS subject_group,
+    COALESCE(tp.profile_image_url, p.profile_image_url, '')::text AS profile_image_url
+  FROM wpa_records w
+  LEFT JOIN profiles p          ON p.id = w.user_id
+  LEFT JOIN teacher_profiles tp ON tp.id = w.user_id
+  ORDER BY w.year DESC, full_name;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_all_wpa_admin() TO authenticated;
+
+
+-- ============================================================
+-- 10. Indexes ใหม่
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_org_pages_slug           ON public.org_pages(slug);
 CREATE INDEX IF NOT EXISTS idx_org_pages_published      ON public.org_pages(is_published, sort_order);
