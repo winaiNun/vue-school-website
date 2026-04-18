@@ -481,7 +481,7 @@ RETURNS TABLE (total_size bigint, file_count bigint)
 LANGUAGE sql SECURITY DEFINER STABLE
 AS $$
   SELECT
-    COALESCE(SUM(metadata->>'size')::bigint, 0) AS total_size,
+    COALESCE(SUM((metadata->>'size')::bigint), 0) AS total_size,
     COUNT(*) AS file_count
   FROM storage.objects
   WHERE bucket_id NOT IN ('supabase-internal');
