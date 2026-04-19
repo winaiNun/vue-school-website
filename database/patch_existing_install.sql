@@ -347,7 +347,36 @@ FROM public.import_sessions;
 
 
 -- ============================================================
--- 9. RPC Functions ที่ขาด
+-- 9. แก้ RLS policies ที่ผิดเพราะ teacher_profiles.id ไม่ใช่ auth UUID อีกต่อไป
+-- ============================================================
+DROP POLICY IF EXISTS "teacher_profiles: select" ON public.teacher_profiles;
+DROP POLICY IF EXISTS "teacher_profiles: insert" ON public.teacher_profiles;
+DROP POLICY IF EXISTS "teacher_profiles: update" ON public.teacher_profiles;
+CREATE POLICY "teacher_profiles: select"
+  ON public.teacher_profiles FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.get_my_role() = 'admin');
+CREATE POLICY "teacher_profiles: insert"
+  ON public.teacher_profiles FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid() OR public.get_my_role() = 'admin');
+CREATE POLICY "teacher_profiles: update"
+  ON public.teacher_profiles FOR UPDATE TO authenticated
+  USING (user_id = auth.uid() OR public.get_my_role() = 'admin');
+
+DROP POLICY IF EXISTS "dept_assignments: teacher manage own" ON public.teacher_department_assignments;
+CREATE POLICY "dept_assignments: teacher manage own"
+  ON public.teacher_department_assignments FOR ALL TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.teacher_profiles
+    WHERE id = teacher_id AND user_id = auth.uid()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM public.teacher_profiles
+    WHERE id = teacher_id AND user_id = auth.uid()
+  ));
+
+
+-- ============================================================
+-- 10. RPC Functions ที่ขาด
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.get_sis_sessions()
@@ -440,7 +469,7 @@ AS $$
     COALESCE(tp.profile_image_url, p.profile_image_url, '')::text AS profile_image_url
   FROM wpa_records w
   LEFT JOIN profiles p          ON p.id = w.user_id
-  LEFT JOIN teacher_profiles tp ON tp.id = w.user_id
+  LEFT JOIN teacher_profiles tp ON tp.user_id = w.user_id
   ORDER BY w.year DESC, full_name;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_all_wpa_admin() TO authenticated;
