@@ -503,6 +503,9 @@ async function handleSave() {
     if (payload.prefix === '__custom__') payload.prefix = prefixCustom.trim() || ''
     if (!payload.first_name || !payload.last_name) throw new Error('กรุณากรอกชื่อ-นามสกุล')
 
+    // teacherId = UUID ของ teacher_profiles record (ไม่เปลี่ยนแปลง)
+    const teacherId = editId.value || pendingNewId.value
+
     // ── ถ้าต้องการสร้างบัญชี ──────────────────────────────────
     if (createAccount) {
       if (!accountEmail) throw new Error('กรุณากรอกอีเมลสำหรับบัญชี')
@@ -526,7 +529,6 @@ async function handleSave() {
       })
       const authData = await res.json()
       if (!res.ok) {
-        // Supabase ใช้ field 'msg' ไม่ใช่ 'message'
         const errMsg = authData.message || authData.msg || authData.error_description || authData.error || ''
         if (res.status === 422 && (authData.error_code === 'email_exists' || authData.error_code === 'user_already_exists' || errMsg.toLowerCase().includes('already'))) {
           throw new Error(`อีเมล ${accountEmail.trim()} มีบัญชีในระบบแล้ว — ลองใช้อีเมลอื่น หรือเชื่อมบัญชีที่มีอยู่`)
@@ -536,7 +538,7 @@ async function handleSave() {
 
       const newUserId = authData.id
 
-      // upsert profiles
+      // upsert profiles (auth user record)
       await supabase.from('profiles').upsert({
         id:          newUserId,
         email:       accountEmail.trim(),
@@ -545,41 +547,40 @@ async function handleSave() {
         is_approved: accountApproved,
       }, { onConflict: 'id' })
 
-      // สร้าง teacher_profiles ด้วย id = newUserId
-      payload.id = newUserId
-      payload.email = accountEmail.trim()
-      const { error: tpErr } = await supabase.from('teacher_profiles').upsert(payload, { onConflict: 'id' })
-      if (tpErr) throw tpErr
+      // เชื่อม user_id กับ teacher_profiles — ไม่เปลี่ยน id ของ teacher record
+      payload.user_id = newUserId
+      payload.email   = accountEmail.trim()
 
-      // บันทึก dept
-      await supabase.from('teacher_department_assignments').delete().eq('teacher_id', newUserId)
-      const validDepts = deptAssignments.value.filter(d => d.department_name?.trim())
-      if (validDepts.length) {
-        await supabase.from('teacher_department_assignments').insert(
-          validDepts.map(d => ({ teacher_id: newUserId, department_name: d.department_name, department_role: d.department_role || 'กรรมการ' }))
-        )
+      if (editId.value) {
+        // กรณี edit ครูที่มีอยู่: update record เดิม + เชื่อม user_id
+        const { error: tpErr } = await supabase.from('teacher_profiles').update(payload).eq('id', editId.value)
+        if (tpErr) throw tpErr
+      } else {
+        // กรณีสร้างใหม่: ใช้ pendingNewId เป็น teacher id
+        payload.id = pendingNewId.value
+        const { error: tpErr } = await supabase.from('teacher_profiles').insert(payload)
+        if (tpErr) throw tpErr
       }
 
     } else {
       // ── ไม่สร้างบัญชี — บันทึกข้อมูลครูอย่างเดียว ─────────
-      let teacherId = editId.value
       if (editId.value) {
         const { error } = await supabase.from('teacher_profiles').update(payload).eq('id', editId.value)
         if (error) throw error
       } else {
         payload.id = pendingNewId.value
-        teacherId  = pendingNewId.value
         const { error } = await supabase.from('teacher_profiles').insert(payload)
         if (error) throw error
       }
+    }
 
-      await supabase.from('teacher_department_assignments').delete().eq('teacher_id', teacherId)
-      const validDepts = deptAssignments.value.filter(d => d.department_name?.trim())
-      if (validDepts.length) {
-        await supabase.from('teacher_department_assignments').insert(
-          validDepts.map(d => ({ teacher_id: teacherId, department_name: d.department_name, department_role: d.department_role || 'กรรมการ' }))
-        )
-      }
+    // บันทึก dept assignments (ใช้ teacherId เสมอ ไม่ใช่ auth user UUID)
+    await supabase.from('teacher_department_assignments').delete().eq('teacher_id', teacherId)
+    const validDepts = deptAssignments.value.filter(d => d.department_name?.trim())
+    if (validDepts.length) {
+      await supabase.from('teacher_department_assignments').insert(
+        validDepts.map(d => ({ teacher_id: teacherId, department_name: d.department_name, department_role: d.department_role || 'กรรมการ' }))
+      )
     }
 
     closeForm()
@@ -613,18 +614,14 @@ async function deleteTeacher() {
 onMounted(async () => {
   await loadTeachers()
 
-  // โหลด profiles สำหรับ dropdown เชื่อม + นับ pending + หา linked ids
-  const { data: profiles } = await supabase
+  // ids ที่มีบัญชีแล้ว: ครูที่มี user_id (เชื่อมกับ auth account)
+  linkedIds.value = new Set(teachers.value.filter(t => t.user_id).map(t => t.id))
+
+  // นับบัญชีรอการอนุมัติ
+  const { count } = await supabase
     .from('profiles')
-    .select('id, email, full_name, is_approved, role')
-    .in('role', ['teacher', 'pending'])
-
-  const allProfiles = profiles || []
-  availableProfiles.value = allProfiles.filter(p => !p.is_approved)
-  pendingCount.value = allProfiles.filter(p => !p.is_approved).length
-
-  // ids ที่มีบัญชีแล้ว (teacher_profiles.id ตรงกับ profiles.id)
-  const profileIds = new Set(allProfiles.map(p => p.id))
-  linkedIds.value = new Set(teachers.value.filter(t => profileIds.has(t.id)).map(t => t.id))
+    .select('*', { count: 'exact', head: true })
+    .eq('is_approved', false)
+  pendingCount.value = count || 0
 })
 </script>
