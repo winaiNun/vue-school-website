@@ -439,6 +439,7 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_checkpoint_stats(UUID) TO anon, authenticated;
 
+DROP FUNCTION IF EXISTS public.get_all_wpa_admin();
 CREATE OR REPLACE FUNCTION public.get_all_wpa_admin()
 RETURNS TABLE (
   id                UUID,
