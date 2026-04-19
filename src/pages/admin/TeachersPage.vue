@@ -113,9 +113,22 @@
               <div>
                 <label class="label">คำนำหน้า</label>
                 <select v-model="teacherForm.prefix" class="input-field">
-                  <option>นาย</option><option>นาง</option><option>นางสาว</option>
-                  <option>เด็กชาย</option><option>เด็กหญิง</option>
+                  <option>นาย</option>
+                  <option>นาง</option>
+                  <option>นางสาว</option>
+                  <option>ดร.</option>
+                  <option>ผศ.</option>
+                  <option>ผศ.ดร.</option>
+                  <option>รศ.</option>
+                  <option>รศ.ดร.</option>
+                  <option>เด็กชาย</option>
+                  <option>เด็กหญิง</option>
+                  <option value="__custom__">อื่นๆ (กรอกเอง)</option>
                 </select>
+                <input v-if="teacherForm.prefix === '__custom__'"
+                  v-model="teacherForm.prefixCustom"
+                  class="input-field mt-1"
+                  placeholder="เช่น พ.อ., ว่าที่ ร.ต." />
               </div>
               <div>
                 <label class="label">ชื่อ <span class="text-red-500">*</span></label>
@@ -394,7 +407,7 @@ const filterPos         = ref('')
 const deptAssignments   = ref([])   // [{ department_name, department_role }]
 
 const emptyForm = () => ({
-  prefix: 'นาย', first_name: '', last_name: '', position: 'ครู',
+  prefix: 'นาย', prefixCustom: '', first_name: '', last_name: '', position: 'ครู',
   academic_standing: '', subject_group: '', group_role: '', subjects_taught: '',
   id_card: '', phone: '', email: '', birth_date: '',
   education_level: '', education_major: '', education_institution: '',
@@ -444,8 +457,12 @@ function openAdd() {
 async function openEdit(t) {
   editId.value      = t.id
   pendingNewId.value = ''
+  const knownPrefixes = ['นาย','นาง','นางสาว','ดร.','ผศ.','ผศ.ดร.','รศ.','รศ.ดร.','เด็กชาย','เด็กหญิง','']
+  const savedPrefix   = t.prefix || 'นาย'
+  const isCustom      = !knownPrefixes.includes(savedPrefix)
   teacherForm.value = {
-    prefix:             t.prefix || 'นาย',
+    prefix:             isCustom ? '__custom__' : savedPrefix,
+    prefixCustom:       isCustom ? savedPrefix : '',
     first_name:         t.first_name || '',
     last_name:          t.last_name || '',
     position:           t.position || 'ครู',
@@ -481,7 +498,9 @@ async function handleSave() {
   formLoading.value = true
   formError.value   = ''
   try {
-    const { profile_id, createAccount, accountEmail, accountPassword, accountApproved, ...payload } = teacherForm.value
+    const { profile_id, createAccount, accountEmail, accountPassword, accountApproved, prefixCustom, ...payload } = teacherForm.value
+    // แปลง prefix custom
+    if (payload.prefix === '__custom__') payload.prefix = prefixCustom.trim() || ''
     if (!payload.first_name || !payload.last_name) throw new Error('กรุณากรอกชื่อ-นามสกุล')
 
     // ── ถ้าต้องการสร้างบัญชี ──────────────────────────────────
