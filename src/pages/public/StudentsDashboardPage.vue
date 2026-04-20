@@ -117,11 +117,11 @@
           </div>
         </div>
 
-        <!-- Level summary cards (real-time) -->
-        <div v-if="!filterLevel" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+        <!-- Level summary cards (real-time) — flex + centered last row -->
+        <div v-if="!filterLevel" class="flex flex-wrap justify-center gap-3 mb-6">
           <div v-for="[lvl, cnt] in filteredByLevel" :key="lvl"
             @click="filterLevel = lvl; filterRoom = ''"
-            class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-all">
+            class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-all w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)]">
             <p class="font-bold text-gray-800 text-lg">{{ lvl }}</p>
             <p class="text-2xl font-black text-blue-600 mt-1">{{ cnt.total.toLocaleString() }}</p>
             <p class="text-xs text-gray-400 mt-0.5">
