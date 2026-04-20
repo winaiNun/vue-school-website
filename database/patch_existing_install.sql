@@ -424,8 +424,8 @@ BEGIN
       grade_level || '/' || room::text AS room_key,
       jsonb_build_object(
         'total',  COUNT(*),
-        'male',   COUNT(*) FILTER (WHERE gender = 'ชาย'),
-        'female', COUNT(*) FILTER (WHERE gender = 'หญิง')
+        'male',   COUNT(*) FILTER (WHERE gender IN ('ชาย', 'ช', 'male')),
+        'female', COUNT(*) FILTER (WHERE gender IN ('หญิง', 'ญ', 'female'))
       ) AS stats
     FROM student_snapshots
     WHERE import_session_id = p_session_id

@@ -123,7 +123,7 @@
                   <td class="py-1.5 px-3 font-mono font-semibold text-blue-700">{{ r.student_code }}</td>
                   <td class="py-1.5 px-3 font-mono text-gray-500 text-xs">{{ r.national_id }}</td>
                   <td class="py-1.5 px-3 text-gray-900">{{ r.prefix }}{{ r.first_name }} {{ r.last_name }}</td>
-                  <td class="py-1.5 px-3 text-center">{{ r.gender === 'ช' ? '👦' : '👧' }}</td>
+                  <td class="py-1.5 px-3 text-center">{{ r.gender === 'ชาย' ? '👦' : '👧' }}</td>
                   <td class="py-1.5 px-3 text-center font-medium">{{ r.grade_level }}</td>
                   <td class="py-1.5 px-3 text-center">{{ r.room }}</td>
                   <td class="py-1.5 px-3 text-center text-gray-500">{{ r.birth_date }}</td>
@@ -367,6 +367,10 @@ async function processFile(file) {
       obj.guardian_name = [obj._guardian_first, obj._guardian_last].filter(Boolean).join(' ')
       delete obj._guardian_first; delete obj._guardian_last
       delete obj.school_code  // ไม่เก็บในตาราง students
+
+      // Normalize gender: DMC ใช้ 'ช'/'ญ' → แปลงเป็น 'ชาย'/'หญิง' เสมอ
+      if (obj.gender === 'ช' || obj.gender === 'male') obj.gender = 'ชาย'
+      else if (obj.gender === 'ญ' || obj.gender === 'female') obj.gender = 'หญิง'
 
       // แปลงวันเกิด
       obj.birth_date = parseBirthDate(obj.birth_date)
