@@ -221,45 +221,114 @@
         </div>
       </div>
 
-      <!-- Tab: ประวัติ Import -->
+      <!-- Tab: ประวัติ Import + Session Management -->
       <div v-if="activeTab==='history'">
         <div v-if="!sessions.length" class="p-10 text-center text-gray-400">
           <div class="text-4xl mb-2">📋</div>ยังไม่มีประวัติการนำเข้า
+          <div class="mt-4">
+            <router-link to="/admin/sis/import" class="btn-primary px-5 py-2 text-sm">📥 นำเข้าข้อมูลใหม่</router-link>
+          </div>
         </div>
-        <table v-else class="w-full text-sm">
-          <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
-            <tr>
-              <th class="py-2.5 px-4 text-left">ปี</th>
-              <th class="py-2.5 px-4 text-left">ช่วง</th>
-              <th class="py-2.5 px-4 text-center">รวม</th>
-              <th class="py-2.5 px-4 text-center">ใหม่</th>
-              <th class="py-2.5 px-4 text-center">อัปเดต</th>
-              <th class="py-2.5 px-4 text-center">ออก</th>
-              <th class="py-2.5 px-4 text-left hidden md:table-cell">นำเข้าโดย</th>
-              <th class="py-2.5 px-4 text-left hidden lg:table-cell">วันที่</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in sessions" :key="s.id" class="border-b border-gray-50 hover:bg-gray-50/50">
-              <td class="py-2.5 px-4 font-bold text-blue-700">{{ s.academic_year }}</td>
-              <td class="py-2.5 px-4">
+        <div v-else>
+          <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
+            <p class="text-xs text-gray-500">{{ sessions.length }} รอบ — ลากหรือใช้ปุ่ม ↑↓ เพื่อเรียงลำดับ</p>
+            <router-link to="/admin/sis/import" class="text-xs text-blue-600 hover:underline">📥 นำเข้าใหม่</router-link>
+          </div>
+          <div class="divide-y divide-gray-50">
+            <div v-for="(s, idx) in sessions" :key="s.id"
+              class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50/60 transition group">
+
+              <!-- Sort arrows -->
+              <div class="flex flex-col gap-0.5 shrink-0">
+                <button @click="moveSession(idx, -1)" :disabled="idx===0"
+                  class="w-6 h-5 flex items-center justify-center text-gray-300 hover:text-blue-500 disabled:opacity-20 transition text-xs rounded hover:bg-blue-50">▲</button>
+                <button @click="moveSession(idx, +1)" :disabled="idx===sessions.length-1"
+                  class="w-6 h-5 flex items-center justify-center text-gray-300 hover:text-blue-500 disabled:opacity-20 transition text-xs rounded hover:bg-blue-50">▼</button>
+              </div>
+
+              <!-- Year + checkpoint badge -->
+              <div class="w-16 shrink-0">
+                <span class="font-bold text-blue-700 text-sm">{{ s.academic_year }}</span>
+              </div>
+              <div class="shrink-0">
                 <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                  ช่วง {{ s.checkpoint }} · {{ s.checkpoint_label }}
+                  ช่วง {{ s.checkpoint }}
                 </span>
-              </td>
-              <td class="py-2.5 px-4 text-center font-bold">{{ s.total_rows }}</td>
-              <td class="py-2.5 px-4 text-center text-blue-600">+{{ s.new_count }}</td>
-              <td class="py-2.5 px-4 text-center text-green-600">{{ s.updated_count }}</td>
-              <td class="py-2.5 px-4 text-center text-orange-500">{{ s.left_count }}</td>
-              <td class="py-2.5 px-4 text-gray-500 text-xs hidden md:table-cell">{{ s.imported_by_name }}</td>
-              <td class="py-2.5 px-4 text-gray-400 text-xs hidden lg:table-cell">
-                {{ new Date(s.imported_at).toLocaleString('th-TH') }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+
+              <!-- Label — editable inline -->
+              <div class="flex-1 min-w-0">
+                <template v-if="editingSession?.id === s.id">
+                  <input v-model="editingLabel" @keyup.enter="saveSessionLabel"
+                    @keyup.esc="editingSession=null"
+                    class="w-full border border-blue-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    :ref="el => el && el.focus()" />
+                </template>
+                <template v-else>
+                  <span class="text-sm text-gray-800 truncate block">{{ s.checkpoint_label || `ช่วง ${s.checkpoint}/${s.academic_year}` }}</span>
+                  <span class="text-xs text-gray-400">{{ new Date(s.imported_at).toLocaleDateString('th-TH') }} · {{ s.total_rows?.toLocaleString() }} คน</span>
+                </template>
+              </div>
+
+              <!-- Count chips -->
+              <div class="hidden md:flex items-center gap-2 shrink-0">
+                <span class="text-xs font-bold text-gray-700">{{ s.total_rows?.toLocaleString() }}</span>
+              </div>
+
+              <!-- Edit / Save / Cancel / Delete buttons -->
+              <div class="flex items-center gap-1 shrink-0">
+                <template v-if="editingSession?.id === s.id">
+                  <button @click="saveSessionLabel" :disabled="savingSessionLabel"
+                    class="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 transition">
+                    {{ savingSessionLabel ? '...' : 'บันทึก' }}
+                  </button>
+                  <button @click="editingSession=null"
+                    class="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition">ยกเลิก</button>
+                </template>
+                <template v-else>
+                  <button @click="startEditSession(s)"
+                    class="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition">✏️</button>
+                  <button @click="confirmDeleteSession(s)"
+                    class="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">🗑️</button>
+                </template>
+              </div>
+            </div>
+          </div>
+          <div v-if="sessionActionError" class="px-4 py-2 text-xs text-red-600 bg-red-50 border-t border-red-100">
+            ⚠️ {{ sessionActionError }}
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Delete Session Confirm Modal -->
+    <div v-if="deleteSessionTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      @click.self="deleteSessionTarget=null">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div class="text-4xl mb-3">🗑️</div>
+        <h3 class="font-bold text-gray-800 mb-2">ลบรอบการนำเข้า?</h3>
+        <p class="text-sm font-medium text-gray-700 mb-1">{{ deleteSessionTarget.checkpoint_label }}</p>
+        <p class="text-xs text-gray-400 mb-5">
+          ปีการศึกษา {{ deleteSessionTarget.academic_year }} ช่วงที่ {{ deleteSessionTarget.checkpoint }} ·
+          {{ deleteSessionTarget.total_rows?.toLocaleString() }} รายการ
+        </p>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-5 text-xs text-red-700 text-left">
+          ⚠️ ข้อมูล Snapshot <strong>{{ deleteSessionTarget.total_rows?.toLocaleString() }}</strong> รายการของรอบนี้จะถูกลบถาวร
+        </div>
+        <div v-if="deleteSessionError" class="bg-red-50 border border-red-200 rounded-lg p-2 mb-4 text-xs text-red-600">
+          {{ deleteSessionError }}
+        </div>
+        <div class="flex gap-3 justify-center">
+          <button @click="deleteSessionTarget=null" class="px-5 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">ยกเลิก</button>
+          <button @click="deleteSession" :disabled="deletingSession"
+            class="px-5 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 flex items-center gap-2">
+            <span v-if="deletingSession" class="animate-spin">⏳</span>
+            {{ deletingSession ? 'กำลังลบ...' : 'ลบถาวร' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Status Modal -->
     <div v-if="statusModal.show"
       class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
@@ -476,6 +545,99 @@ async function fetchAll() {
   stats.value     = statsData || null
   lastSession.value = (sess || [])[0] || null
   loadingStudents.value = false
+}
+
+// ══ Session Management ════════════════════════════════════════════════════════
+const editingSession      = ref(null)   // session object กำลัง edit label
+const editingLabel        = ref('')
+const savingSessionLabel  = ref(false)
+const deleteSessionTarget = ref(null)
+const deletingSession     = ref(false)
+const deleteSessionError  = ref('')
+const sessionActionError  = ref('')
+
+function startEditSession(s) {
+  editingSession.value = s
+  editingLabel.value   = s.checkpoint_label || ''
+}
+
+async function saveSessionLabel() {
+  if (!editingSession.value || !editingLabel.value.trim()) return
+  savingSessionLabel.value = true; sessionActionError.value = ''
+  try {
+    const { error } = await supabase
+      .from('import_sessions')
+      .update({ checkpoint_label: editingLabel.value.trim() })
+      .eq('id', editingSession.value.id)
+    if (error) throw error
+    // อัปเดต local state
+    const t = sessions.value.find(s => s.id === editingSession.value.id)
+    if (t) t.checkpoint_label = editingLabel.value.trim()
+    editingSession.value = null
+  } catch (e) {
+    sessionActionError.value = e.message || 'บันทึกไม่ได้'
+  } finally {
+    savingSessionLabel.value = false
+  }
+}
+
+function confirmDeleteSession(s) {
+  deleteSessionTarget.value = s
+  deleteSessionError.value  = ''
+}
+
+async function deleteSession() {
+  if (!deleteSessionTarget.value) return
+  deletingSession.value = true; deleteSessionError.value = ''
+  try {
+    const id = deleteSessionTarget.value.id
+    // 1. ลบ snapshots ก่อน (FK constraint)
+    const { error: snapErr } = await supabase
+      .from('student_snapshots').delete().eq('import_session_id', id)
+    if (snapErr) throw snapErr
+    // 2. ลบ import_session
+    const { error: sessErr } = await supabase
+      .from('import_sessions').delete().eq('id', id)
+    if (sessErr) throw sessErr
+    // 3. อัปเดต local
+    sessions.value = sessions.value.filter(s => s.id !== id)
+    lastSession.value = sessions.value[0] || null
+    deleteSessionTarget.value = null
+  } catch (e) {
+    deleteSessionError.value = e.message || 'เกิดข้อผิดพลาด'
+  } finally {
+    deletingSession.value = false
+  }
+}
+
+async function moveSession(idx, dir) {
+  const swapIdx = idx + dir
+  if (swapIdx < 0 || swapIdx >= sessions.value.length) return
+  sessionActionError.value = ''
+
+  // สลับ sort_order ของสองตัว
+  const a = sessions.value[idx]
+  const b = sessions.value[swapIdx]
+  const orderA = a.sort_order ?? idx
+  const orderB = b.sort_order ?? swapIdx
+
+  // ถ้า sort_order เท่ากัน ให้ใช้ index แทน
+  const newOrderA = orderB === orderA ? (dir > 0 ? orderA + 1 : orderA - 1) : orderB
+  const newOrderB = orderB === orderA ? (dir > 0 ? orderA - 1 : orderA + 1) : orderA
+
+  try {
+    await Promise.all([
+      supabase.from('import_sessions').update({ sort_order: newOrderA }).eq('id', a.id),
+      supabase.from('import_sessions').update({ sort_order: newOrderB }).eq('id', b.id),
+    ])
+    // อัปเดต local
+    sessions.value[idx].sort_order     = newOrderA
+    sessions.value[swapIdx].sort_order = newOrderB
+    // สลับตำแหน่งใน array
+    ;[sessions.value[idx], sessions.value[swapIdx]] = [sessions.value[swapIdx], sessions.value[idx]]
+  } catch (e) {
+    sessionActionError.value = e.message || 'เรียงลำดับไม่ได้'
+  }
 }
 
 onMounted(fetchAll)

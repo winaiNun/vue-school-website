@@ -203,7 +203,8 @@ const adminNavGroups = [
   {
     label: 'นักเรียน',
     items: [
-      { to: '/admin/students', icon: '🎓', label: 'จัดการนักเรียน' },
+      { to: '/admin/students', icon: '🎓', label: 'ทะเบียนนักเรียน' },
+      { to: '/admin/sis',      icon: '📊', label: 'สถิติ DMC' },
       { to: '/admin/calendar', icon: '📅', label: 'ปฏิทินวิชาการ' },
     ],
   },
@@ -247,7 +248,7 @@ const allPageTitles = {
   '/admin/config': 'ตั้งค่าโรงเรียน',
   '/admin/users': 'จัดการผู้ใช้',
   '/admin/teachers': 'จัดการครู',
-  '/admin/students': 'จัดการนักเรียน',
+  '/admin/students': 'ทะเบียนนักเรียน',
   '/admin/org-pages': 'ข้อมูลพื้นฐาน',
   '/admin/news': 'จัดการข่าว',
   '/admin/media': 'คลังสื่อ',

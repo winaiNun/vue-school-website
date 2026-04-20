@@ -338,6 +338,7 @@ CREATE TABLE IF NOT EXISTS public.import_sessions (
   left_count       INTEGER      DEFAULT 0,
   imported_by      UUID         REFERENCES public.profiles(id) ON DELETE SET NULL,
   notes            TEXT         DEFAULT '',
+  sort_order       INTEGER      DEFAULT 0,   -- เรียงลำดับแสดงผล (น้อย=แสดงก่อน)
   imported_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -848,13 +849,14 @@ RETURNS TABLE (
   checkpoint       SMALLINT,
   checkpoint_label TEXT,
   total_rows       INTEGER,
+  sort_order       INTEGER,
   imported_at      TIMESTAMPTZ
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
 AS $$
-  SELECT id, academic_year, checkpoint, checkpoint_label, total_rows, imported_at
+  SELECT id, academic_year, checkpoint, checkpoint_label, total_rows, sort_order, imported_at
   FROM import_sessions
-  ORDER BY imported_at DESC;
+  ORDER BY sort_order ASC NULLS LAST, imported_at DESC;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_sis_sessions() TO anon, authenticated;
 

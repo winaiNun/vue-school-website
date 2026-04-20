@@ -5,8 +5,8 @@
       <!-- Header -->
       <div class="mb-6 flex items-start justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-800">จัดการนักเรียน</h1>
-          <p class="text-gray-500 text-sm mt-1">นำเข้าข้อมูล DMC · ติดตามสถิติ · ดูประวัติเปรียบเทียบ</p>
+          <h1 class="text-2xl font-bold text-gray-800">ทะเบียนนักเรียน</h1>
+          <p class="text-gray-500 text-sm mt-1">ระบบ 1 · จัดการรายชื่อนักเรียนปัจจุบัน · สำหรับสถิติ DMC ดูที่ <router-link to="/admin/sis" class="text-blue-500 hover:underline">สถิติ DMC</router-link></p>
         </div>
         <div v-if="latestImport" class="text-right text-xs text-gray-400 hidden md:block">
           นำเข้าล่าสุด<br/>
@@ -146,6 +146,10 @@
                 class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2 transition">
                 ➕ เพิ่มนักเรียน
               </button>
+              <button @click="showClearConfirm = true"
+                class="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-sm px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                🗑️ ล้างทั้งหมด
+              </button>
             </div>
           </div>
         </div>
@@ -265,30 +269,10 @@
             <h2 class="font-semibold text-gray-800 mb-1">ตรวจสอบ Column และข้อมูลการนำเข้า</h2>
             <p class="text-sm text-gray-500 mb-5">ตรวจสอบการจับคู่คอลัมน์ และกรอกข้อมูลรอบการนำเข้า</p>
 
-            <div class="bg-gray-50 rounded-xl p-4 mb-5 grid grid-cols-2 gap-3">
-              <div class="flex flex-col gap-1 col-span-2">
-                <label class="text-xs font-medium text-gray-600">ชื่อรอบการนำเข้า <span class="text-red-400">*</span></label>
-                <input v-model="importMeta.label" type="text" placeholder="เช่น ภาคเรียนที่ 1/2567"
-                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"/>
-              </div>
-              <div class="flex flex-col gap-1">
-                <label class="text-xs font-medium text-gray-600">ปีการศึกษา (พ.ศ.) <span class="text-red-400">*</span></label>
-                <input v-model.number="importMeta.academic_year" type="number" placeholder="2567"
-                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"/>
-              </div>
-              <div class="flex flex-col gap-1">
-                <label class="text-xs font-medium text-gray-600">ภาคเรียน <span class="text-red-400">*</span></label>
-                <select v-model.number="importMeta.semester"
-                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                  <option :value="1">ภาคเรียนที่ 1</option>
-                  <option :value="2">ภาคเรียนที่ 2</option>
-                </select>
-              </div>
-              <div class="flex flex-col gap-1 col-span-2">
-                <label class="text-xs font-medium text-gray-600">หมายเหตุ</label>
-                <input v-model="importMeta.note" type="text" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"
-                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"/>
-              </div>
+            <!-- ระบบ 1 ไม่ต้องการ label/semester — แค่ map column ก็พอ -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-5 text-xs text-blue-700">
+              ℹ️ ระบบจะ<strong>อัปเดตทะเบียนนักเรียนปัจจุบัน</strong>ตามไฟล์นี้
+              หากต้องการบันทึกสถิติ DMC หลายรอบ ให้ใช้เมนู <strong>สถิติ DMC</strong> แทน
             </div>
 
             <div class="mb-5">
@@ -404,7 +388,7 @@
               <div class="text-6xl mb-4">🎉</div>
               <h2 class="font-bold text-gray-800 text-lg mb-2">นำเข้าสำเร็จ!</h2>
               <p class="text-gray-500 text-sm mb-1">นำเข้าข้อมูล <strong class="text-blue-700">{{ parsedRows.length.toLocaleString() }}</strong> รายการเรียบร้อย</p>
-              <p class="text-gray-400 text-xs mb-8">{{ importMeta.label }} · ปีการศึกษา {{ importMeta.academic_year }} ภาคเรียนที่ {{ importMeta.semester }}</p>
+              <p class="text-gray-400 text-xs mb-8">อัปเดตข้อมูลทะเบียนนักเรียนปัจจุบันเรียบร้อยแล้ว</p>
               <div class="flex justify-center gap-3">
                 <button @click="resetImport" class="px-5 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">นำเข้าอีกครั้ง</button>
                 <button @click="switchTab('current')" class="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">ดูข้อมูลปัจจุบัน →</button>
@@ -1148,6 +1132,34 @@
         </div>
       </div>
     </div>
+
+    <!-- ═══ Clear All Students Confirm Modal ═══ -->
+    <div v-if="showClearConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      @click.self="showClearConfirm=false">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div class="text-5xl mb-3">⚠️</div>
+        <h3 class="font-bold text-gray-800 mb-2 text-lg">ล้างข้อมูลนักเรียนทั้งหมด?</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          ข้อมูลนักเรียน <strong class="text-red-600">{{ (activeCount + inactiveCount).toLocaleString() }} คน</strong>
+          จะถูกลบออกจากทะเบียนถาวร<br/>
+          <span class="text-xs text-gray-400">(ข้อมูลสถิติ DMC ไม่ได้รับผลกระทบ)</span>
+        </p>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-5 text-xs text-red-700 text-left">
+          🗑️ ไม่สามารถย้อนกลับได้ — ใช้เมื่อต้องการเริ่มต้นทะเบียนใหม่เท่านั้น
+        </div>
+        <div v-if="clearAllError" class="bg-red-50 border border-red-200 rounded-lg p-2 mb-4 text-xs text-red-600">
+          {{ clearAllError }}
+        </div>
+        <div class="flex gap-3 justify-center">
+          <button @click="showClearConfirm=false" class="px-5 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">ยกเลิก</button>
+          <button @click="clearAllStudents" :disabled="clearingAll"
+            class="px-5 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 flex items-center gap-2">
+            <span v-if="clearingAll" class="animate-spin">⏳</span>
+            {{ clearingAll ? 'กำลังล้าง...' : '🗑️ ล้างทั้งหมด' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </Teleport>
 </template>
 
@@ -1472,12 +1484,6 @@ function handleFileUpload(e) {
       })
       colMapping.value = mapping
 
-      // Auto-fill semester
-      if (!importMeta.value.label) {
-        const sem = (new Date().getMonth()+1 >= 5 && new Date().getMonth()+1 <= 10) ? 1 : 2
-        importMeta.value.semester = sem
-        importMeta.value.label = `ภาคเรียนที่ ${sem}/${importMeta.value.academic_year}`
-      }
       importStep.value = 2
     } catch (err) { fileError.value='ไม่สามารถอ่านไฟล์ได้ กรุณาตรวจสอบรูปแบบไฟล์'; console.error(err) }
   }
@@ -1486,7 +1492,6 @@ function handleFileUpload(e) {
 
 const mappedRequired = computed(() => REQUIRED_COLS.filter(c=>colMapping.value[c.key]).length)
 const canProceed     = computed(() =>
-  importMeta.value.label && importMeta.value.academic_year &&
   REQUIRED_COLS.every(c => colMapping.value[c.key])
 )
 
@@ -1520,82 +1525,36 @@ const importError = ref('')   // เก็บ error message แยก
 
 async function executeImport() {
   importStep.value = 4; importDone.value = false; importError.value = ''
-  importProgress.value = 0; importStatus.value = 'กำลังสร้างรอบการนำเข้า...'
+  importProgress.value = 0; importStatus.value = 'กำลังอัปเดตข้อมูลนักเรียน...'
   try {
-    const BATCH = 200, rows = parsedRows.value, year = importMeta.value.academic_year
+    const BATCH = 200, rows = parsedRows.value
 
-    // 1. Create import_session (FK ที่ student_snapshots ใช้)
-    const { data:imp, error:impErr } = await supabase.from('import_sessions')
-      .insert({
-        academic_year:    year,
-        checkpoint:       importMeta.value.semester,        // semester 1/2
-        checkpoint_label: importMeta.value.label,
-        total_rows:       rows.length,
-        imported_by:      user.value?.id || null,
-        notes:            importMeta.value.note || null,
-      })
-      .select().single()
-    if (impErr) throw new Error(`สร้าง Import Session ไม่ได้: ${impErr.message}`)
-    importProgress.value = 5
+    // ── ระบบ 1: อัปเดตทะเบียนนักเรียนปัจจุบันเท่านั้น (ไม่บันทึก import_session / snapshots) ──
 
-    // 2. Insert student_snapshots (batch ละ 200 ลดขนาด payload)
+    // 1. Upsert students
     let done = 0
-    importStatus.value = 'กำลังบันทึก Snapshots...'
-    for (let i = 0; i < rows.length; i += BATCH) {
-      const batch = rows.slice(i, i + BATCH).map(r => ({
-        import_session_id: imp.id,
-        academic_year: year,
-        student_code: r.student_code  || null,
-        prefix:       r.prefix        || null,
-        first_name:   r.first_name    || null,
-        last_name:    r.last_name     || null,
-        gender:       r.gender        || null,
-        birth_date:   parseDateThai(r.birth_date),          // ← แปลง format ไทย
-        grade_level:  r.grade_level   || null,
-        room:         r.room          ? (parseInt(r.room) || null) : null,
-        nationality:  r.nationality   || null,
-        religion:     r.religion      || null,
-        ethnicity:    r.ethnicity     || null,
-        weight:       r.weight        ? (parseFloat(r.weight)  || null) : null,
-        height:       r.height        ? (parseFloat(r.height)  || null) : null,
-        disadvantaged:   r.disadvantaged    || null,
-        guardian_name:   r.guardian_name    || null,
-        guardian_relation: r.guardian_relation || null,
-        national_id:  r.national_id   || null,
-        status:       r.status        || 'กำลังศึกษา',
-      }))
-      const { error } = await supabase.from('student_snapshots').insert(batch)
-      if (error) throw new Error(`บันทึก Snapshots ล้มเหลว (แถวที่ ${i+1}–${i+batch.length}): ${error.message}`)
-      done += batch.length
-      importProgress.value = Math.round(5 + (done / rows.length) * 45)
-      importStatus.value   = `Snapshots: ${done.toLocaleString()} / ${rows.length.toLocaleString()}`
-    }
-
-    // 3. Upsert students
-    done = 0
     importStatus.value = 'กำลังอัปเดตข้อมูลนักเรียนปัจจุบัน...'
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH).map(r => ({
-        student_code:   r.student_code  || null,
-        prefix:         r.prefix        || null,
-        first_name:     r.first_name    || '',    // NOT NULL ใน DB
-        last_name:      r.last_name     || '',    // NOT NULL ใน DB
-        gender:         r.gender        || null,
-        national_id:    r.national_id   || null,
-        grade_level:    r.grade_level   || null,
-        room:           r.room ? (parseInt(r.room) || null) : null,  // smallint
-        is_active:      true,
-        last_import_id: imp.id,
+        student_code: r.student_code  || null,
+        prefix:       r.prefix        || null,
+        first_name:   r.first_name    || '',    // NOT NULL ใน DB
+        last_name:    r.last_name     || '',    // NOT NULL ใน DB
+        gender:       r.gender        || null,
+        national_id:  r.national_id   || null,
+        grade_level:  r.grade_level   || null,
+        room:         r.room ? (parseInt(r.room) || null) : null,  // smallint
+        is_active:    true,
       }))
       const { error } = await supabase.from('students').upsert(batch, { onConflict: 'student_code' })
       if (error) throw new Error(`อัปเดตนักเรียนล้มเหลว (แถวที่ ${i+1}–${i+batch.length}): ${error.message}`)
       done += batch.length
-      importProgress.value = Math.round(50 + (done / rows.length) * 35)
-      importStatus.value   = `Students: ${done.toLocaleString()} / ${rows.length.toLocaleString()}`
+      importProgress.value = Math.round((done / rows.length) * 70)
+      importStatus.value   = `อัปเดต: ${done.toLocaleString()} / ${rows.length.toLocaleString()}`
     }
 
-    // 4. Mark inactive (batch fetch > 1000 รองรับ)
-    importStatus.value = 'กำลังทำเครื่องหมายนักเรียนที่ออก...'; importProgress.value = 88
+    // 2. Mark inactive (นักเรียนที่ไม่อยู่ในไฟล์ → is_active = false)
+    importStatus.value = 'กำลังทำเครื่องหมายนักเรียนที่ออก...'; importProgress.value = 75
     let allActive = [], afrom = 0
     while (true) {
       const { data } = await supabase.from('students').select('student_code').eq('is_active', true)
@@ -1613,7 +1572,6 @@ async function executeImport() {
     importProgress.value = 100; importStatus.value = 'เสร็จสิ้น!'
     importDone.value = true
     await loadCurrentStudents()
-    await loadImports()
     loadBMIData()
   } catch (err) {
     console.error('Import error:', err)
@@ -1626,6 +1584,27 @@ function resetImport() {
   importStep.value=1; fileError.value=''; excelHeaders.value=[]; rawHeadersAll.value=[]
   rawRows.value=[]; parsedRows.value=[]; colMapping.value={}
   importProgress.value=0; importStatus.value=''; importDone.value=false; importError.value=''
+}
+
+// ══ Clear All Students ══════════════════════════════════════════════════════════
+const showClearConfirm = ref(false)
+const clearingAll      = ref(false)
+const clearAllError    = ref('')
+
+async function clearAllStudents() {
+  clearingAll.value = true; clearAllError.value = ''
+  try {
+    // ลบนักเรียนทุกคนออกจากทะเบียน (ระบบ 1 เท่านั้น — ไม่กระทบ student_snapshots)
+    const { error } = await supabase.from('students').delete().neq('student_code', '__never__')
+    if (error) throw error
+    showClearConfirm.value = false
+    await loadCurrentStudents()
+  } catch (e) {
+    console.error(e)
+    clearAllError.value = e.message || 'เกิดข้อผิดพลาด'
+  } finally {
+    clearingAll.value = false
+  }
 }
 
 // ══ TAB 3: History ══════════════════════════════════════════════════════════════

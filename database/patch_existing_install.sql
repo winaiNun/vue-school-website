@@ -39,7 +39,8 @@ ALTER TABLE public.import_sessions
   ADD COLUMN IF NOT EXISTS filename      TEXT,
   ADD COLUMN IF NOT EXISTS new_count     INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS updated_count INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS left_count    INTEGER DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS left_count    INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS sort_order    INTEGER DEFAULT 0;
 
 
 -- ============================================================
@@ -509,3 +510,26 @@ CREATE INDEX IF NOT EXISTS idx_calendar_year            ON public.academic_calen
 CREATE INDEX IF NOT EXISTS idx_media_published          ON public.media(is_published, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_dept_teacher             ON public.teacher_department_assignments(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_news_pinned              ON public.news(is_pinned);
+
+
+-- ============================================================
+-- 11. อัปเดต get_sis_sessions → เพิ่ม sort_order + เรียงลำดับ
+-- ============================================================
+DROP FUNCTION IF EXISTS public.get_sis_sessions();
+CREATE OR REPLACE FUNCTION public.get_sis_sessions()
+RETURNS TABLE (
+  id               UUID,
+  academic_year    SMALLINT,
+  checkpoint       SMALLINT,
+  checkpoint_label TEXT,
+  total_rows       INTEGER,
+  sort_order       INTEGER,
+  imported_at      TIMESTAMPTZ
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT id, academic_year, checkpoint, checkpoint_label, total_rows, sort_order, imported_at
+  FROM import_sessions
+  ORDER BY sort_order ASC NULLS LAST, imported_at DESC;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_sis_sessions() TO anon, authenticated;
