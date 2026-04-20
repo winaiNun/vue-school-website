@@ -859,6 +859,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_sis_sessions() TO anon, authenticated;
 
 -- ─── get_checkpoint_stats (สถิตินักเรียนตาม session) ─────────
+DROP FUNCTION IF EXISTS public.get_checkpoint_stats(UUID);
 CREATE OR REPLACE FUNCTION public.get_checkpoint_stats(p_session_id UUID)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public
