@@ -120,16 +120,8 @@ const roomCount = computed(() =>
 )
 
 onMounted(async () => {
-  const { data: sessions } = await supabase.rpc('get_sis_sessions')
-  const list = Array.isArray(sessions) ? sessions : (sessions || [])
-  if (!list.length) return
-
-  const latest = list[0]
-  sessionLabel.value = `${latest.checkpoint_label} ปีการศึกษา ${latest.academic_year}`
-
-  const { data } = await supabase.rpc('get_checkpoint_stats', { p_session_id: latest.id })
+  const { data } = await supabase.rpc('get_current_student_stats')
   stats.value = data || null
-
-  // (IntersectionObserver / count-up removed — sectionRef was not declared)
+  sessionLabel.value = 'นักเรียนปัจจุบัน'
 })
 </script>

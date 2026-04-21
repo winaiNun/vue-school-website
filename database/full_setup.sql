@@ -339,6 +339,7 @@ CREATE TABLE IF NOT EXISTS public.import_sessions (
   imported_by      UUID         REFERENCES public.profiles(id) ON DELETE SET NULL,
   notes            TEXT         DEFAULT '',
   sort_order       INTEGER      DEFAULT 0,   -- เรียงลำดับแสดงผล (น้อย=แสดงก่อน)
+  stats_json       JSONB        DEFAULT '{}',-- สถิติสรุป: total,male,female,byLevel
   imported_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

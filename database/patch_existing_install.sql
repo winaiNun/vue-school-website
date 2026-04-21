@@ -533,3 +533,79 @@ AS $$
   ORDER BY sort_order ASC NULLS LAST, imported_at DESC;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_sis_sessions() TO anon, authenticated;
+
+
+-- ============================================================
+-- 12. ระบบ 2: เพิ่ม stats_json ใน import_sessions
+-- ============================================================
+ALTER TABLE public.import_sessions
+  ADD COLUMN IF NOT EXISTS stats_json JSONB DEFAULT '{}'::jsonb;
+
+
+-- ============================================================
+-- 13. get_current_student_stats — อ่านสถิติจาก students table
+--     คืน jsonb โครงสร้างเดียวกับ get_checkpoint_stats
+--     ใช้โดย public pages (anon) แสดงนักเรียนปัจจุบัน
+-- ============================================================
+DROP FUNCTION IF EXISTS public.get_current_student_stats();
+CREATE OR REPLACE FUNCTION public.get_current_student_stats()
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+DECLARE
+  v_total           bigint := 0;
+  v_male            bigint := 0;
+  v_female          bigint := 0;
+  v_by_level        jsonb;
+  v_by_room         jsonb;
+  v_by_level_gender jsonb;
+BEGIN
+  SELECT COUNT(*),
+    COUNT(*) FILTER (WHERE gender IN ('ชาย','ช','male')),
+    COUNT(*) FILTER (WHERE gender IN ('หญิง','ญ','female'))
+  INTO v_total, v_male, v_female
+  FROM students WHERE is_active = true;
+
+  SELECT jsonb_object_agg(grade_level, cnt) INTO v_by_level
+  FROM (
+    SELECT grade_level, COUNT(*) AS cnt
+    FROM students WHERE is_active = true AND grade_level IS NOT NULL AND grade_level <> ''
+    GROUP BY grade_level
+  ) t;
+
+  SELECT jsonb_object_agg(room_key, stats) INTO v_by_room
+  FROM (
+    SELECT grade_level || '/' || COALESCE(room::text, '0') AS room_key,
+      jsonb_build_object(
+        'total',  COUNT(*),
+        'male',   COUNT(*) FILTER (WHERE gender IN ('ชาย','ช','male')),
+        'female', COUNT(*) FILTER (WHERE gender IN ('หญิง','ญ','female'))
+      ) AS stats
+    FROM students
+    WHERE is_active = true AND grade_level IS NOT NULL AND grade_level <> ''
+    GROUP BY grade_level, room
+  ) t;
+
+  SELECT jsonb_object_agg(grade_level, stats) INTO v_by_level_gender
+  FROM (
+    SELECT grade_level, jsonb_build_object(
+      'total',  COUNT(*),
+      'male',   COUNT(*) FILTER (WHERE gender IN ('ชาย','ช','male')),
+      'female', COUNT(*) FILTER (WHERE gender IN ('หญิง','ญ','female'))
+    ) AS stats
+    FROM students
+    WHERE is_active = true AND grade_level IS NOT NULL AND grade_level <> ''
+    GROUP BY grade_level
+  ) t;
+
+  RETURN jsonb_build_object(
+    'total',         COALESCE(v_total, 0),
+    'male',          COALESCE(v_male, 0),
+    'female',        COALESCE(v_female, 0),
+    'byLevel',       COALESCE(v_by_level, '{}'::jsonb),
+    'byRoom',        COALESCE(v_by_room, '{}'::jsonb),
+    'byLevelGender', COALESCE(v_by_level_gender, '{}'::jsonb)
+  );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_current_student_stats() TO anon, authenticated;

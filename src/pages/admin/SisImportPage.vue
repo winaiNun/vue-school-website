@@ -198,24 +198,25 @@
       <!-- STEP 5: Done -->
       <div v-if="step === 5" class="bg-white rounded-2xl shadow-sm p-10 text-center">
         <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5 text-3xl">✅</div>
-        <h3 class="font-bold text-gray-900 text-xl mb-2">นำเข้าสำเร็จ!</h3>
+        <h3 class="font-bold text-gray-900 text-xl mb-2">บันทึกสถิติสำเร็จ!</h3>
         <p class="text-sm text-gray-500 mb-6">ปีการศึกษา {{ meta.academic_year }} ช่วงที่ {{ meta.checkpoint }}</p>
         <div class="grid grid-cols-3 gap-4 max-w-md mx-auto mb-8">
           <div class="bg-blue-50 rounded-xl p-4">
-            <p class="text-2xl font-bold text-blue-600">{{ result.new_count }}</p>
-            <p class="text-xs text-gray-500 mt-1">นักเรียนใหม่</p>
+            <p class="text-2xl font-bold text-blue-600">{{ result.total?.toLocaleString() }}</p>
+            <p class="text-xs text-gray-500 mt-1">นักเรียนทั้งหมด</p>
           </div>
-          <div class="bg-green-50 rounded-xl p-4">
-            <p class="text-2xl font-bold text-green-600">{{ result.updated_count }}</p>
-            <p class="text-xs text-gray-500 mt-1">อัปเดตข้อมูล</p>
+          <div class="bg-sky-50 rounded-xl p-4">
+            <p class="text-2xl font-bold text-sky-600">{{ result.male?.toLocaleString() }}</p>
+            <p class="text-xs text-gray-500 mt-1">👦 ชาย</p>
           </div>
-          <div class="bg-orange-50 rounded-xl p-4">
-            <p class="text-2xl font-bold text-orange-500">{{ result.left_count }}</p>
-            <p class="text-xs text-gray-500 mt-1">ออกจากระบบ</p>
+          <div class="bg-pink-50 rounded-xl p-4">
+            <p class="text-2xl font-bold text-pink-500">{{ result.female?.toLocaleString() }}</p>
+            <p class="text-xs text-gray-500 mt-1">👧 หญิง</p>
           </div>
         </div>
+        <p class="text-xs text-gray-400 mb-6">บันทึกเฉพาะสถิติสรุป — ไม่มีผลต่อทะเบียนนักเรียนปัจจุบัน</p>
         <div class="flex justify-center gap-3">
-          <router-link to="/admin/sis" class="btn-primary px-6 py-2.5">📊 ดูข้อมูลนักเรียน</router-link>
+          <router-link to="/admin/sis" class="btn-primary px-6 py-2.5">📊 ดูกราฟเปรียบเทียบ</router-link>
           <button @click="reset" class="px-6 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">นำเข้าอีกครั้ง</button>
         </div>
       </div>
@@ -237,7 +238,7 @@ const isDragging = ref(false)
 const fileName  = ref('')
 const rows      = ref([])
 const errorRows = ref([])
-const result    = ref({ new_count: 0, updated_count: 0, left_count: 0 })
+const result    = ref({ total: 0, male: 0, female: 0 })
 
 const steps = ['อัปโหลด', 'ตรวจสอบ', 'ยืนยัน', 'บันทึก', 'เสร็จสิ้น']
 const checkpoints = [
@@ -400,43 +401,65 @@ async function processFile(file) {
   }
 }
 
+// ── คำนวณสถิติ client-side (ระบบ 2 เก็บแค่ตัวเลข ไม่แตะ students table) ──
+function calcStats(list) {
+  const byLevel = {}
+  let total = 0, male = 0, female = 0
+  for (const r of list) {
+    total++
+    const m = r.gender === 'ชาย'
+    const f = r.gender === 'หญิง'
+    if (m) male++; if (f) female++
+    const lvl = r.grade_level || 'ไม่ระบุ'
+    if (!byLevel[lvl]) byLevel[lvl] = { total: 0, male: 0, female: 0 }
+    byLevel[lvl].total++
+    if (m) byLevel[lvl].male++
+    if (f) byLevel[lvl].female++
+  }
+  return { total, male, female, byLevel }
+}
+
 async function doImport() {
   if (!meta.value.academic_year || !meta.value.checkpoint) return
   step.value = 4
 
-  const label = meta.value.notes
-    ? `${fileName.value} — ${meta.value.notes}`
-    : fileName.value
+  try {
+    const statsJson = calcStats(rows.value)
+    const cp = meta.value.checkpoint
+    const yr = meta.value.academic_year
+    const cpLabel = { 1: '10 มิ.ย.', 2: '10 พ.ย.', 3: '30 เม.ย.' }[cp] || `ช่วง ${cp}`
+    const label = meta.value.notes || `${cpLabel} ปีการศึกษา ${yr}`
 
-  // ส่งทั้งหมดในครั้งเดียว — ไม่ batch เพื่อป้องกัน "สถานะออก" ผิด
-  const { data, error } = await supabase.rpc('process_student_import', {
-    p_year:        meta.value.academic_year,
-    p_checkpoint:  meta.value.checkpoint,
-    p_label:       label,
-    p_school_code: detectedSchoolCode.value || '',
-    p_students:    rows.value,
-  })
+    // บันทึกแค่สรุปสถิติลง import_sessions — ไม่สร้าง student_snapshots และไม่แตะ students table
+    const { error } = await supabase.from('import_sessions').insert({
+      academic_year:    yr,
+      checkpoint:       cp,
+      checkpoint_label: label,
+      total_rows:       statsJson.total,
+      stats_json:       statsJson,
+      notes:            meta.value.notes || null,
+    })
+    if (error) throw error
 
-  if (error) {
-    alert('เกิดข้อผิดพลาด: ' + error.message)
+    result.value = {
+      total:  statsJson.total,
+      male:   statsJson.male,
+      female: statsJson.female,
+    }
+    step.value = 5
+  } catch (e) {
+    alert('เกิดข้อผิดพลาด: ' + e.message)
     step.value = 3
-    return
   }
-
-  result.value = {
-    new_count:     data.inserted ?? 0,
-    updated_count: data.updated  ?? 0,
-    left_count:    0,
-  }
-  step.value = 5
 }
 
 function reset() {
-  step.value      = 1
-  rows.value      = []
-  errorRows.value = []
-  fileName.value  = ''
+  step.value       = 1
+  rows.value       = []
+  errorRows.value  = []
+  fileName.value   = ''
   parseError.value = ''
-  meta.value      = { academic_year: currentYear, checkpoint: null, notes: '' }
+  result.value     = { total: 0, male: 0, female: 0 }
+  meta.value       = { academic_year: currentYear, checkpoint: null, notes: '' }
 }
 </script>

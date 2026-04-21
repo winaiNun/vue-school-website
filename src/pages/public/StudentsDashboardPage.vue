@@ -5,29 +5,11 @@
       <div class="max-w-5xl mx-auto text-center">
         <h1 class="text-2xl md:text-3xl font-bold">🎓 สารสนเทศข้อมูลนักเรียน</h1>
         <p class="text-blue-200 mt-1 text-sm">{{ config?.name_th || 'โรงเรียน' }}</p>
-        <p v-if="selectedSession" class="text-blue-300 text-xs mt-1">
-          ข้อมูล ณ {{ selectedSession.checkpoint_label }} ปีการศึกษา {{ selectedSession.academic_year }}
-        </p>
+        <p class="text-blue-300 text-xs mt-1">ข้อมูลนักเรียนปัจจุบัน</p>
       </div>
     </div>
 
     <div class="max-w-5xl mx-auto px-4 py-8">
-
-      <!-- Session selector -->
-      <div v-if="sessions.length" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
-        <p class="text-xs font-semibold text-gray-500 mb-3 text-center">📅 เลือกช่วงข้อมูล</p>
-        <div class="flex flex-wrap justify-center gap-2">
-          <button v-for="s in sessions" :key="s.id"
-            @click="selectSession(s)"
-            :class="['px-4 py-2 rounded-xl text-sm font-medium transition-all border-2',
-              selectedSession?.id === s.id
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-gray-200 text-gray-600 hover:border-blue-200']">
-            ปี {{ s.academic_year }} · {{ s.checkpoint_label }}
-            <span class="ml-1 text-xs text-gray-400">{{ Number(s.total_rows).toLocaleString() }} คน</span>
-          </button>
-        </div>
-      </div>
 
       <div v-if="loading" class="py-20 text-center text-gray-400">
         <div class="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
@@ -324,10 +306,8 @@ import { supabase } from '../../lib/supabase'
 
 const { config, fetchConfig } = useSchoolConfig()
 const showPublicBMI = ref(false)
-const loading         = ref(true)
-const sessions        = ref([])
-const stats           = ref(null)
-const selectedSession = ref(null)
+const loading       = ref(true)
+const stats         = ref(null)
 
 const filterGroup = ref('')
 const filterLevel = ref('')
@@ -480,17 +460,6 @@ const filteredByLevel = computed(() => {
   return Object.entries(acc).sort((a, b) => levelOrder(a[0]) - levelOrder(b[0]))
 })
 
-async function selectSession(s) {
-  selectedSession.value = s
-  loading.value = true
-  filterGroup.value = ''
-  filterLevel.value = ''
-  filterRoom.value  = ''
-  const { data } = await supabase.rpc('get_checkpoint_stats', { p_session_id: s.id })
-  stats.value = data || null
-  loading.value = false
-}
-
 // ══ BMI Section ════════════════════════════════════════════════════════════════
 const bmiLoading  = ref(false)
 const bmiRawData  = ref([])   // { grade_level, weight, height } จาก snapshots ล่าสุดของนักเรียนปัจจุบัน
@@ -566,13 +535,10 @@ onMounted(async () => {
   await fetchConfig()
   showPublicBMI.value = config.value?.show_public_bmi ?? false
 
-  const { data: sess } = await supabase.rpc('get_sis_sessions')
-  sessions.value = Array.isArray(sess) ? sess : (sess || [])
-  if (sessions.value.length) {
-    await selectSession(sessions.value[0])
-  } else {
-    loading.value = false
-  }
+  // อ่านจาก students table โดยตรง (ไม่ต้องผ่าน import_sessions)
+  const { data } = await supabase.rpc('get_current_student_stats')
+  stats.value = data || null
+  loading.value = false
 
   // โหลด BMI เฉพาะเมื่อ admin เปิดใช้งาน
   if (showPublicBMI.value) loadPublicBMI()
