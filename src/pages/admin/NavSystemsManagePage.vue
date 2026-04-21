@@ -122,13 +122,35 @@
                   <!-- Emoji picker -->
                   <div>
                     <label class="label">ไอคอน (Emoji)</label>
-                    <div class="flex flex-wrap gap-1.5">
+                    <!-- กริดตัวเลือกสำเร็จรูป -->
+                    <div class="flex flex-wrap gap-1.5 mb-2">
                       <button v-for="e in EMOJI_OPTIONS" :key="e" @click="form.icon = e"
                         :class="['w-8 h-8 rounded-lg text-base flex items-center justify-center border-2 transition-all',
                           form.icon === e ? 'border-blue-500 bg-blue-50 scale-110' : 'border-gray-200 hover:border-gray-300']">
                         {{ e }}
                       </button>
                     </div>
+                    <!-- พิมพ์/วาง Emoji เองได้ -->
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-xs text-gray-400 whitespace-nowrap">หรือพิมพ์เอง:</span>
+                      <input
+                        v-model="form.icon"
+                        type="text"
+                        maxlength="8"
+                        placeholder="วาง emoji ที่นี่ 🏅"
+                        class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        @input="e => { form.icon = [...(e.target.value||'')].slice(0,2).join('') }"
+                      />
+                      <button v-if="form.icon" @click="form.icon='🔗'"
+                        class="text-xs text-gray-400 hover:text-red-400 transition px-1.5 py-1 rounded hover:bg-red-50"
+                        title="รีเซ็ต">✕</button>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1 ml-1">
+                      คัดลอก emoji จาก
+                      <a href="https://emojipedia.org" target="_blank" class="text-blue-400 hover:underline">emojipedia.org</a>
+                      หรือ Windows: <kbd class="text-[9px] bg-gray-100 px-1 py-0.5 rounded border">Win+.</kbd>
+                      Mac: <kbd class="text-[9px] bg-gray-100 px-1 py-0.5 rounded border">⌘+⌃+Space</kbd>
+                    </p>
                   </div>
 
                   <!-- Color picker -->
