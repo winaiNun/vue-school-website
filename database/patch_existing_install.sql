@@ -609,3 +609,24 @@ BEGIN
 END;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_current_student_stats() TO anon, authenticated;
+
+
+-- ============================================================
+-- 14. แก้ get_public_bmi_stats อ่านจาก students table โดยตรง
+--     (ระบบ 1 เก็บ weight/height ใน students แล้ว ไม่ต้องผ่าน snapshots)
+-- ============================================================
+DROP FUNCTION IF EXISTS public.get_public_bmi_stats();
+CREATE OR REPLACE FUNCTION public.get_public_bmi_stats()
+RETURNS TABLE (grade_level text, weight text, height text)
+LANGUAGE sql SECURITY DEFINER STABLE
+AS $$
+  SELECT
+    grade_level::text,
+    weight::text,
+    height::text
+  FROM students
+  WHERE is_active = true
+    AND weight IS NOT NULL
+    AND height IS NOT NULL;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_public_bmi_stats() TO anon, authenticated;

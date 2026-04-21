@@ -54,46 +54,102 @@
 
       <!-- ═══ Tab 1: กราฟเปรียบเทียบ ═══ -->
       <template v-if="activeTab==='chart'">
+
+        <!-- Vertical Bar + Trend Line Chart -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-700 text-sm">จำนวนนักเรียนแยกตามรอบข้อมูล</h3>
+            <h3 class="font-semibold text-gray-700 text-sm">จำนวนนักเรียนรวมแต่ละปี</h3>
             <div class="flex items-center gap-4 text-xs text-gray-500">
-              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded inline-block bg-blue-400"></span>รวม</span>
-              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded inline-block bg-sky-400"></span>ชาย</span>
-              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded inline-block bg-pink-400"></span>หญิง</span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-8 h-3 rounded inline-block bg-gradient-to-r from-blue-400 to-blue-600"></span>รวม
+              </span>
+              <span class="flex items-center gap-1.5">
+                <svg width="24" height="8"><line x1="0" y1="4" x2="24" y2="4" stroke="#f97316" stroke-width="2.5" stroke-linecap="round"/><circle cx="12" cy="4" r="3" fill="white" stroke="#f97316" stroke-width="2"/></svg>
+                แนวโน้ม
+              </span>
             </div>
           </div>
 
-          <!-- Horizontal bar chart -->
-          <div class="space-y-5">
-            <div v-for="s in sessions" :key="s.id" class="group">
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="text-xs font-semibold text-gray-700 truncate max-w-[60%]">
-                  {{ s.checkpoint_label || `ช่วง ${s.checkpoint}/${s.academic_year}` }}
-                </span>
-                <span class="text-xs text-gray-500">
-                  <span class="font-bold text-gray-800">{{ sj(s).total?.toLocaleString() }}</span> คน ·
-                  <span class="text-sky-500">{{ sj(s).male?.toLocaleString() }}ช</span>/
-                  <span class="text-pink-500">{{ sj(s).female?.toLocaleString() }}ญ</span>
-                </span>
-              </div>
+          <div class="w-full overflow-x-auto" @mouseleave="hoveredChartBar=null">
+            <svg :viewBox="`0 0 ${C.W} ${C.H}`" class="w-full" style="min-width:320px;overflow:visible">
+              <defs>
+                <linearGradient id="sisBarGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#60a5fa"/>
+                  <stop offset="100%" stop-color="#2563eb"/>
+                </linearGradient>
+                <linearGradient id="sisBarHov" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#93c5fd"/>
+                  <stop offset="100%" stop-color="#3b82f6"/>
+                </linearGradient>
+              </defs>
 
-              <!-- Total bar -->
-              <div class="w-full bg-gray-100 rounded-full h-4 mb-1 overflow-hidden">
-                <div class="h-4 bg-blue-400 rounded-full transition-all duration-700"
-                  :style="`width:${maxTotal ? Math.round(sj(s).total/maxTotal*100) : 0}%`"></div>
-              </div>
-              <!-- Male/Female split bar -->
-              <div class="w-full h-2 flex overflow-hidden rounded-full">
-                <div class="h-2 bg-sky-300 transition-all duration-700"
-                  :style="`width:${sj(s).total ? Math.round(sj(s).male/sj(s).total*100) : 0}%`"></div>
-                <div class="h-2 bg-pink-300 transition-all duration-700 flex-1"></div>
-              </div>
-            </div>
+              <!-- Y-axis grid + labels -->
+              <g v-for="tick in chartYTicks" :key="tick.v">
+                <line :x1="C.PL" :y1="tick.y" :x2="C.W-C.PR" :y2="tick.y"
+                  :stroke="tick.v===0?'#cbd5e1':'#f1f5f9'" :stroke-width="tick.v===0?1.5:1"/>
+                <text :x="C.PL-6" :y="tick.y+4" text-anchor="end" font-size="10" fill="#94a3b8">
+                  {{ tick.label }}
+                </text>
+              </g>
+
+              <!-- Bars -->
+              <g v-for="bar in chartBars" :key="bar.s.id"
+                 @mouseenter="hoveredChartBar=bar"
+                 @mouseleave="hoveredChartBar=null"
+                 style="cursor:pointer">
+                <rect :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" rx="5"
+                  :fill="hoveredChartBar?.s.id===bar.s.id ? 'url(#sisBarHov)' : 'url(#sisBarGrad)'"
+                  :opacity="hoveredChartBar && hoveredChartBar.s.id!==bar.s.id ? 0.55 : 1"
+                  class="transition-all duration-150"/>
+                <!-- Value on top of bar (if bar tall enough) -->
+                <text v-if="bar.h > 20" :x="bar.cx" :y="bar.y-5"
+                  text-anchor="middle" font-size="10" font-weight="700" fill="#3b82f6">
+                  {{ bar.val >= 1000 ? `${(bar.val/1000).toFixed(1)}k` : bar.val }}
+                </text>
+                <!-- X label: year -->
+                <text :x="bar.cx" :y="C.H-C.PB+16" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">
+                  {{ bar.s.academic_year }}
+                </text>
+                <!-- X label: checkpoint -->
+                <text :x="bar.cx" :y="C.H-C.PB+28" text-anchor="middle" font-size="9" fill="#94a3b8">
+                  ช่วง {{ bar.s.checkpoint }}
+                </text>
+              </g>
+
+              <!-- Trend line -->
+              <path v-if="trendPath" :d="trendPath"
+                fill="none" stroke="#f97316" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+
+              <!-- Trend dots -->
+              <g v-for="bar in chartBars" :key="'dot-'+bar.s.id">
+                <circle :cx="bar.cx" :cy="bar.ty" r="5" fill="white" stroke="#f97316" stroke-width="2.5"/>
+              </g>
+
+              <!-- Tooltip -->
+              <g v-if="hoveredChartBar"
+                :transform="`translate(${Math.min(Math.max(hoveredChartBar.cx, C.PL+48), C.W-C.PR-48)},${Math.max(hoveredChartBar.y-14, C.PT+8)})`">
+                <rect x="-48" y="-58" width="96" height="52" rx="8" fill="#1e293b" opacity="0.95"/>
+                <text x="0" y="-40" text-anchor="middle" font-size="9" fill="#94a3b8">
+                  {{ hoveredChartBar.s.checkpoint_label || `ช่วง ${hoveredChartBar.s.checkpoint}` }}
+                </text>
+                <text x="0" y="-24" text-anchor="middle" font-size="9" fill="#94a3b8">
+                  ปีการศึกษา {{ hoveredChartBar.s.academic_year }}
+                </text>
+                <text x="0" y="-8" text-anchor="middle" font-size="16" font-weight="700" fill="white">
+                  {{ hoveredChartBar.val.toLocaleString() }} คน
+                </text>
+                <polygon points="-5,0 5,0 0,7" fill="#1e293b" opacity="0.95"/>
+              </g>
+
+              <!-- Axes -->
+              <line :x1="C.PL" :y1="C.PT" :x2="C.PL" :y2="C.H-C.PB" stroke="#e2e8f0" stroke-width="1.5"/>
+              <line :x1="C.PL" :y1="C.H-C.PB" :x2="C.W-C.PR" :y2="C.H-C.PB" stroke="#e2e8f0" stroke-width="1.5"/>
+            </svg>
           </div>
         </div>
 
-        <!-- ตารางสรุปแต่ละรอบ -->
+        <!-- ตารางสรุปแต่ละรอบ (เรียงเก่า→ใหม่ = ซ้าย→ขวาเหมือนกราฟ) -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -103,11 +159,12 @@
                 <th class="py-2.5 px-4 text-center">รวม</th>
                 <th class="py-2.5 px-4 text-center">👦 ชาย</th>
                 <th class="py-2.5 px-4 text-center">👧 หญิง</th>
+                <th class="py-2.5 px-4 text-center hidden sm:table-cell">เปลี่ยน</th>
                 <th class="py-2.5 px-4 text-left hidden md:table-cell">วันที่นำเข้า</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in sessions" :key="'t'+s.id" class="border-b border-gray-50 hover:bg-gray-50/50">
+              <tr v-for="(s, i) in chartSessions" :key="'t'+s.id" class="border-b border-gray-50 hover:bg-gray-50/50">
                 <td class="py-2.5 px-4">
                   <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
                     ช่วง {{ s.checkpoint }}
@@ -118,6 +175,17 @@
                 <td class="py-2.5 px-4 text-center font-bold">{{ sj(s).total?.toLocaleString() ?? '-' }}</td>
                 <td class="py-2.5 px-4 text-center text-sky-600">{{ sj(s).male?.toLocaleString() ?? '-' }}</td>
                 <td class="py-2.5 px-4 text-center text-pink-500">{{ sj(s).female?.toLocaleString() ?? '-' }}</td>
+                <td class="py-2.5 px-4 text-center hidden sm:table-cell">
+                  <template v-if="i > 0 && sj(chartSessions[i-1]).total">
+                    <span :class="['text-xs font-medium px-2 py-0.5 rounded-full',
+                      sj(s).total > sj(chartSessions[i-1]).total ? 'bg-green-100 text-green-700' :
+                      sj(s).total < sj(chartSessions[i-1]).total ? 'bg-red-100 text-red-600' :
+                      'bg-gray-100 text-gray-500']">
+                      {{ sj(s).total > sj(chartSessions[i-1]).total ? '+' : '' }}{{ (sj(s).total||0) - (sj(chartSessions[i-1]).total||0) }}
+                    </span>
+                  </template>
+                  <span v-else class="text-xs text-gray-300">–</span>
+                </td>
                 <td class="py-2.5 px-4 text-gray-400 text-xs hidden md:table-cell">
                   {{ new Date(s.imported_at).toLocaleDateString('th-TH') }}
                 </td>
@@ -233,11 +301,63 @@ const tabs = [
   { key: 'sessions', icon: '📋', label: 'จัดการรอบข้อมูล' },
 ]
 
-// Helper: ดึง stats_json จาก session (หรือใช้ total_rows ถ้ายังไม่มี)
+// Helper: ดึง stats_json จาก session
 function sj(s) { return s.stats_json || {} }
 
 const latestStats = computed(() => sj(sessions.value[0]))
-const maxTotal    = computed(() => Math.max(...sessions.value.map(s => sj(s).total || 0), 1))
+
+// ── Chart: เรียงเก่า→ใหม่ (ซ้าย→ขวา) ────────────────────────────────────────
+const chartSessions = computed(() =>
+  [...sessions.value].sort((a, b) => {
+    if (a.academic_year !== b.academic_year) return a.academic_year - b.academic_year
+    return (a.checkpoint || 0) - (b.checkpoint || 0)
+  })
+)
+
+const C = { W: 720, H: 260, PL: 52, PR: 20, PT: 20, PB: 50 }
+
+const chartMax = computed(() =>
+  Math.max(...chartSessions.value.map(s => sj(s).total || 0), 1)
+)
+
+function tyAt(val) {
+  return C.PT + (C.H - C.PT - C.PB) * (1 - val / chartMax.value)
+}
+
+const chartYTicks = computed(() => {
+  const max = chartMax.value
+  let step = Math.pow(10, Math.floor(Math.log10(max / 4)))
+  if (max / step > 8) step *= 2
+  const ticks = []
+  for (let v = 0; v <= max * 1.08; v += step) {
+    ticks.push({ v, y: tyAt(v), label: v >= 1000 ? `${(v/1000).toFixed(v%1000===0?0:1)}k` : v })
+  }
+  return ticks
+})
+
+const chartBars = computed(() => {
+  const n = chartSessions.value.length
+  if (!n) return []
+  const slotW = (C.W - C.PL - C.PR) / n
+  const barW  = Math.min(slotW * 0.52, 54)
+  return chartSessions.value.map((s, i) => {
+    const cx  = C.PL + slotW * i + slotW / 2
+    const val = sj(s).total || 0
+    const ty  = tyAt(val)
+    return {
+      s, cx, x: cx - barW / 2, y: ty,
+      w: barW, h: C.H - C.PB - ty,
+      val, ty,
+    }
+  })
+})
+
+const trendPath = computed(() => {
+  if (chartBars.value.length < 2) return ''
+  return chartBars.value.map((b, i) => `${i===0?'M':'L'}${b.cx},${b.ty}`).join(' ')
+})
+
+const hoveredChartBar = ref(null)
 
 // ══ Session Management ══════════════════════════════════════════════════════
 const editingSession     = ref(null)

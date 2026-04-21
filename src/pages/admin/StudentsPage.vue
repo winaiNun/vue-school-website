@@ -8,10 +8,8 @@
           <h1 class="text-2xl font-bold text-gray-800">ทะเบียนนักเรียน</h1>
           <p class="text-gray-500 text-sm mt-1">ระบบ 1 · จัดการรายชื่อนักเรียนปัจจุบัน · สำหรับสถิติ DMC ดูที่ <router-link to="/admin/sis" class="text-blue-500 hover:underline">สถิติ DMC</router-link></p>
         </div>
-        <div v-if="latestImport" class="text-right text-xs text-gray-400 hidden md:block">
-          นำเข้าล่าสุด<br/>
-          <span class="font-semibold text-gray-600">{{ latestImport.label }}</span><br/>
-          {{ formatDate(latestImport.imported_at) }}
+        <div class="text-right text-xs text-gray-400 hidden md:block">
+          <span class="text-gray-400">{{ activeCount.toLocaleString() }} คน · กำลังศึกษา</span>
         </div>
       </div>
 
@@ -424,18 +422,10 @@
       </template>
 
       <!-- ═══════════════════════════════════════ -->
-      <!-- TAB 3: ประวัติ / เปรียบเทียบ           -->
-      <!-- ═══════════════════════════════════════ -->
-      <template v-if="activeTab === 'history'">
-        <div v-if="loadingHistory" class="text-center py-16 text-gray-400 animate-pulse">กำลังโหลด...</div>
-        <div v-else-if="imports.length===0" class="text-center py-20">
-          <div class="text-5xl mb-4">📭</div>
-          <p class="text-gray-400">ยังไม่มีประวัติการนำเข้าข้อมูล</p>
-          <button @click="switchTab('import')" class="mt-4 px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            เริ่มนำเข้า DMC
-          </button>
-        </div>
-        <template v-else>
+      <!-- TAB 3 (ประวัติ/เปรียบเทียบ): ย้ายไปหน้า สถิติ DMC แล้ว -->
+
+      <template v-if="false"><!-- removed history tab placeholder -->
+        <template v-if="false">
 
           <!-- Grouped Bar Chart: ชาย / หญิง / รวม -->
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-5">
@@ -1178,7 +1168,6 @@ const { config: schoolConfig, fetchConfig, updateConfig } = useSchoolConfig()
 const TABS = [
   { key: 'current', icon: '📋', label: 'ข้อมูลปัจจุบัน' },
   { key: 'import',  icon: '📥', label: 'นำเข้า DMC' },
-  { key: 'history', icon: '📊', label: 'ประวัติ / เปรียบเทียบ' },
   { key: 'health',  icon: '🏥', label: 'สุขภาพ BMI' },
 ]
 const IMPORT_STEPS = ['อัปโหลดไฟล์', 'ตรวจสอบ Column', 'ตัวอย่าง', 'นำเข้า']
@@ -1304,7 +1293,6 @@ const activeTab = ref('current')
 function switchTab(tab) {
   activeTab.value = tab
   if (tab === 'current' && allStudents.value.length === 0) loadCurrentStudents()
-  if (tab === 'history') loadImports()
   if (tab === 'health'  && bmiData.value.length === 0)    loadBMIData()
 }
 
@@ -1536,15 +1524,23 @@ async function executeImport() {
     importStatus.value = 'กำลังอัปเดตข้อมูลนักเรียนปัจจุบัน...'
     for (let i = 0; i < rows.length; i += BATCH) {
       const batch = rows.slice(i, i + BATCH).map(r => ({
-        student_code: r.student_code  || null,
-        prefix:       r.prefix        || null,
-        first_name:   r.first_name    || '',    // NOT NULL ใน DB
-        last_name:    r.last_name     || '',    // NOT NULL ใน DB
-        gender:       r.gender        || null,
-        national_id:  r.national_id   || null,
-        grade_level:  r.grade_level   || null,
-        room:         r.room ? (parseInt(r.room) || null) : null,  // smallint
-        is_active:    true,
+        student_code:      r.student_code  || null,
+        prefix:            r.prefix        || null,
+        first_name:        r.first_name    || '',    // NOT NULL ใน DB
+        last_name:         r.last_name     || '',    // NOT NULL ใน DB
+        gender:            r.gender        || null,
+        national_id:       r.national_id   || null,
+        grade_level:       r.grade_level   || null,
+        room:              r.room ? (parseInt(r.room) || null) : null,  // smallint
+        weight:            r.weight  ? (parseFloat(r.weight)  || null) : null,
+        height:            r.height  ? (parseFloat(r.height)  || null) : null,
+        nationality:       r.nationality        || null,
+        ethnicity:         r.ethnicity          || null,
+        religion:          r.religion           || null,
+        guardian_name:     r.guardian_name      || null,
+        guardian_relation: r.guardian_relation  || null,
+        disadvantaged:     r.disadvantaged      || null,
+        is_active:         true,
       }))
       const { error } = await supabase.from('students').upsert(batch, { onConflict: 'student_code' })
       if (error) throw new Error(`อัปเดตนักเรียนล้มเหลว (แถวที่ ${i+1}–${i+batch.length}): ${error.message}`)
@@ -1878,57 +1874,25 @@ async function savePublicBMIToggle() {
 async function loadBMIData() {
   loadingBMI.value = true
   try {
-    // ── Step 1: หา import_session ล่าสุด ──────────────────────────────────────
-    const { data: imp } = await supabase
-      .from('import_sessions')
-      .select('id')
-      .order('imported_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (!imp) { bmiData.value = []; return }
-
-    // ── Step 2: ดึง snapshots ของ import นั้น (ที่มี weight+height) ────────────
-    // ใช้ .range() ปกติ — ไม่ใช้ .in() ที่ทำให้ URL ยาวเกิน
-    let snaps = [], from = 0
+    // ── อ่าน weight/height จาก students table โดยตรง (ระบบ 1) ─────────────────
+    const all = []
+    let from = 0
     while (true) {
       const { data, error } = await supabase
-        .from('student_snapshots')
+        .from('students')
         .select('student_code, weight, height, grade_level, room, gender, prefix')
-        .eq('import_session_id', imp.id)
+        .eq('is_active', true)
         .range(from, from + 999)
       if (error) throw error
       if (!data?.length) break
-      snaps = snaps.concat(data)
+      all.push(...data)
       if (data.length < 1000) break
       from += 1000
     }
-
-    // ── Step 3: cross-reference กับ allStudents (active เท่านั้น) ─────────────
-    // ถ้ายังไม่โหลด students ให้โหลดก่อน
-    if (!allStudents.value.length) await loadCurrentStudents()
-    const activeMap = {}
-    allStudents.value
-      .filter(s => s.is_active)
-      .forEach(s => { activeMap[s.student_code] = s })
-
-    bmiData.value = snaps
-      .filter(snap => {
-        // กรองเฉพาะ active student + ต้องมี weight/height ที่สมเหตุสมผล
-        const w = parseFloat(snap.weight), h = parseFloat(snap.height)
-        return activeMap[snap.student_code] && w > 0 && h > 50
-      })
-      .map(snap => {
-        const s = activeMap[snap.student_code]
-        return {
-          student_code: snap.student_code,
-          grade_level:  s.grade_level || snap.grade_level,  // ใช้ชั้นปัจจุบัน
-          room:         s.room        || snap.room,
-          gender:       s.gender      || snap.gender,
-          prefix:       s.prefix      || snap.prefix,
-          weight:       snap.weight,
-          height:       snap.height,
-        }
-      })
+    bmiData.value = all.filter(s => {
+      const w = parseFloat(s.weight), h = parseFloat(s.height)
+      return w > 0 && h > 50
+    })
   } catch (e) { console.error(e) }
   finally { loadingBMI.value = false }
 }
@@ -2002,34 +1966,33 @@ const editForm = ref({ ...EMPTY_FORM })
 async function openEdit(s) {
   saveError.value = ''
   isAdding.value  = false
-  // ดึงข้อมูลเพิ่มเติมจาก student_snapshots (latest)
-  const { data: snap } = await supabase
-    .from('student_snapshots')
+  // ดึง record เต็มจาก students (weight, height, nationality ฯลฯ อยู่ใน students แล้ว)
+  const { data: full } = await supabase
+    .from('students')
     .select('*')
     .eq('student_code', s.student_code)
-    .order('academic_year', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .single()
 
+  const rec = full || s
   editForm.value = {
-    student_code:      s.student_code || '',
-    prefix:            s.prefix       || '',
-    first_name:        s.first_name   || '',
-    last_name:         s.last_name    || '',
-    gender:            classifyGender(s.gender || snap?.gender, s.prefix || snap?.prefix),
-    birth_date:        snap?.birth_date || '',
-    grade_level:       s.grade_level  || '',
-    room:              String(s.room  || ''),
-    national_id:       s.national_id || snap?.national_id || '',
-    nationality:       snap?.nationality         || '',
-    ethnicity:         snap?.ethnicity           || '',
-    religion:          snap?.religion            || '',
-    weight:            snap?.weight              || '',
-    height:            snap?.height              || '',
-    guardian_name:     snap?.guardian_name       || '',
-    guardian_relation: snap?.guardian_relation   || '',
-    disadvantaged:     snap?.disadvantaged       || '',
-    is_active:         s.is_active ?? true,
+    student_code:      rec.student_code      || '',
+    prefix:            rec.prefix            || '',
+    first_name:        rec.first_name        || '',
+    last_name:         rec.last_name         || '',
+    gender:            classifyGender(rec.gender, rec.prefix),
+    birth_date:        rec.birth_date        || '',
+    grade_level:       rec.grade_level       || '',
+    room:              String(rec.room       || ''),
+    national_id:       rec.national_id       || '',
+    nationality:       rec.nationality       || '',
+    ethnicity:         rec.ethnicity         || '',
+    religion:          rec.religion          || '',
+    weight:            rec.weight            || '',
+    height:            rec.height            || '',
+    guardian_name:     rec.guardian_name     || '',
+    guardian_relation: rec.guardian_relation || '',
+    disadvantaged:     rec.disadvantaged     || '',
+    is_active:         rec.is_active ?? true,
   }
   showModal.value = true
 }
@@ -2050,15 +2013,23 @@ async function saveStudent() {
   saving.value = true
   try {
     const row = {
-      student_code: editForm.value.student_code,
-      prefix:       editForm.value.prefix       || null,
-      first_name:   editForm.value.first_name   || null,
-      last_name:    editForm.value.last_name     || null,
-      gender:       editForm.value.gender        || null,
-      national_id:  editForm.value.national_id   || null,
-      grade_level:  editForm.value.grade_level   || null,
-      room:         editForm.value.room          || null,
-      is_active:    editForm.value.is_active,
+      student_code:      editForm.value.student_code,
+      prefix:            editForm.value.prefix            || null,
+      first_name:        editForm.value.first_name        || null,
+      last_name:         editForm.value.last_name         || null,
+      gender:            editForm.value.gender            || null,
+      national_id:       editForm.value.national_id       || null,
+      grade_level:       editForm.value.grade_level       || null,
+      room:              editForm.value.room              || null,
+      weight:            editForm.value.weight  ? (parseFloat(editForm.value.weight)  || null) : null,
+      height:            editForm.value.height  ? (parseFloat(editForm.value.height)  || null) : null,
+      nationality:       editForm.value.nationality        || null,
+      ethnicity:         editForm.value.ethnicity          || null,
+      religion:          editForm.value.religion           || null,
+      guardian_name:     editForm.value.guardian_name      || null,
+      guardian_relation: editForm.value.guardian_relation  || null,
+      disadvantaged:     editForm.value.disadvantaged      || null,
+      is_active:         editForm.value.is_active,
     }
 
     if (isAdding.value) {
